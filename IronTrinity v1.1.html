@@ -1,0 +1,2969 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>IronTrinity</title>
+<!-- Dwingt Android/Chrome om de app fullscreen te openen zonder browserbalken -->
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Maakt de statusbalk bovenin (met je batterij/tijd) mooi donker in plaats van wit -->
+<meta name="theme-color" content="#0F1117">
+<!-- Koppelt het manifest bestand voor de échte app-ervaring op Android -->
+<link rel="manifest" href="manifest.json">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0F1117;
+  --surface:   #1C1F2E;
+  --surface2:  #252840;
+  --border:    #2E3250;
+  --accent:    #3B82F6;
+  --accent-dim:#1D4ED8;
+  --green:     #22C55E;
+  --amber:     #F59E0B;
+  --red:       #EF4444;
+  --text:      #F1F5F9;
+  --text2:     #94A3B8;
+  --text3:     #4B5563;
+  --radius:    12px;
+  --tab-h:     64px;
+  --safe-b:    env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+#app {
+  display: flex; flex-direction: column; height: 100dvh;
+  max-width: 430px; margin: 0 auto; position: relative;
+}
+
+#screens {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--tab-h) + var(--safe-b) + 8px);
+}
+
+/* ── NAV ── */
+#nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  height: calc(var(--tab-h) + var(--safe-b)); padding-bottom: var(--safe-b);
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; z-index: 100;
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; background: none; border: none;
+  color: var(--text3); font-size: 10px; font-weight: 500; cursor: pointer;
+  transition: color .2s; padding: 8px 4px; -webkit-tap-highlight-color: transparent;
+}
+.tab.active { color: var(--accent); }
+.tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── SCREEN ── */
+.screen { display: none; padding: 0 0 16px; }
+.screen.active { display: block; }
+
+/* ── HEADER ── */
+.screen-header {
+  padding: 16px 16px 0; display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 20px;
+}
+.screen-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.screen-sub   { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+/* ── CARDS ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin: 0 16px 12px; }
+.card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); margin-bottom: 8px; }
+
+/* ── STAT GRID ── */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.stat-value { font-size: 26px; font-weight: 700; letter-spacing: -1px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat-label { font-size: 11px; color: var(--text2); margin-top: 4px; }
+.stat-delta { font-size: 11px; margin-top: 2px; font-weight: 500; }
+.delta-up { color: var(--green); } .delta-down { color: var(--red); } .delta-flat { color: var(--text2); }
+
+/* ── KCAL RING ── */
+.kcal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 0 16px 12px; padding: 20px 16px; display: flex; align-items: center; gap: 20px; }
+.ring-wrap { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-bg { stroke: var(--border); }
+.ring-fill { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1); }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-kcal { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.ring-unit { font-size: 9px; color: var(--text2); }
+.kcal-details { flex: 1; }
+.macro-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.macro-name { font-size: 12px; color: var(--text2); }
+.macro-val  { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.macro-bar-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 10px; overflow: hidden; }
+.macro-bar { height: 100%; border-radius: 2px; transition: width .8s ease; }
+
+/* ── DASHBOARD TODAY CARD ── */
+.workout-today {
+  background: linear-gradient(135deg, var(--accent-dim), var(--accent));
+  border: none; border-radius: var(--radius); margin: 0 16px 12px;
+  padding: 18px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.workout-today:active { opacity: .9; transform: scale(.99); }
+.wt-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; opacity: .8; margin-bottom: 6px; }
+.wt-name  { font-size: 20px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 12px; }
+.wt-meta  { display: flex; gap: 16px; font-size: 13px; opacity: .85; }
+.btn-start {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 14px; padding: 11px;
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.25);
+  border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+
+/* ── HISTORY ── */
+.history-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+.history-item:last-child { border-bottom: none; }
+.history-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.history-icon svg { width: 18px; height: 18px; stroke: var(--accent); fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.history-info { flex: 1; min-width: 0; }
+.history-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-meta { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.history-vol  { font-size: 13px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+/* ── PR / STREAK ── */
+.pr-list  { display: flex; flex-wrap: wrap; gap: 8px; }
+.pr-chip  { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 11px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.pr-badge { font-size: 10px; font-weight: 700; background: var(--green); color: #000; border-radius: 4px; padding: 1px 5px; }
+.streak-badge { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 600; }
+
+/* ── PLACEHOLDER ── */
+.placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 12px; color: var(--text2); text-align: center; padding: 32px; }
+.placeholder svg { width: 48px; height: 48px; stroke: var(--text3); fill: none; stroke-width: 1.5; stroke-linecap: round; }
+.placeholder h3 { font-size: 17px; color: var(--text); font-weight: 600; }
+.placeholder p  { font-size: 14px; color: var(--text2); max-width: 260px; }
+.phase-badge { font-size: 11px; font-weight: 600; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; color: var(--text2); }
+
+/* ── SKELETON ── */
+.skeleton { background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 8px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skel-line { height: 14px; margin-bottom: 8px; }
+
+/* ── TOAST ── */
+#toast { position: fixed; bottom: calc(var(--tab-h) + var(--safe-b) + 12px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 500; padding: 10px 18px; border-radius: 20px; opacity: 0; transition: opacity .25s, transform .25s; z-index: 200; white-space: nowrap; max-width: calc(100% - 32px); }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── UTILS ── */
+.icon-btn { width: 36px; height: 36px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.icon-btn svg { width: 18px; height: 18px; stroke: var(--text2); fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.weight-pill { display: inline-flex; align-items: baseline; gap: 3px; }
+.weight-big  { font-size: 32px; font-weight: 700; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.weight-unit { font-size: 16px; color: var(--text2); }
+.section-head { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; margin: 16px 0 8px; }
+.section-head h2 { font-size: 14px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+.see-all { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; font-weight: 500; }
+
+
+/* ════════════════════════════════════════════════════════
+   MUSCLE DUMMY STYLES
+════════════════════════════════════════════════════════ */
+.dummy-wrap {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 0; justify-content: center;
+}
+.dummy-svg-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.dummy-svg-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; }
+.dummy-svg { overflow: visible; }
+.dummy-svg path {
+  transition: fill .3s ease;
+  cursor: pointer;
+}
+.dummy-legend {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+  margin-top: 10px;
+}
+.dummy-legend-item {
+  display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text2);
+}
+.dummy-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+
+/* ════════════════════════════════
+   FASE 5 — INSTELLINGEN
+════════════════════════════════ */
+.inst-row { display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);gap:16px; }
+.inst-label { flex:1;min-width:0; }
+.inst-key   { font-size:14px;font-weight:500; }
+.inst-sub   { font-size:12px;color:var(--text2);margin-top:2px; }
+.inst-input { background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-weight:600;padding:7px 10px;outline:none;font-family:inherit; }
+.inst-input:focus { border-color:var(--accent); }
+
+/* ════════════════════════════════════════════════════════
+   FASE 2 — WORKOUT STYLES
+════════════════════════════════════════════════════════ */
+
+/* Schema kiezer */
+.schema-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; margin-bottom: 16px; }
+.schema-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; cursor: pointer; text-align: left; transition: border-color .15s, background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.schema-btn:active { background: var(--surface2); }
+.schema-btn.selected { border-color: var(--accent); background: rgba(59,130,246,.08); }
+.schema-btn-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.schema-btn-sub  { font-size: 11px; color: var(--text2); }
+
+.dag-row { display: flex; gap: 8px; padding: 0 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.dag-chip {
+  padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border); background: var(--surface2); cursor: pointer;
+  transition: all .15s; -webkit-tap-highlight-color: transparent;
+}
+.dag-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Grote startknop */
+.btn-primary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: calc(100% - 32px); margin: 0 16px 12px; padding: 14px;
+  background: var(--accent); border: none; border-radius: var(--radius);
+  color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: opacity .15s;
+}
+.btn-primary:active { opacity: .85; }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+
+.btn-secondary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: calc(100% - 32px); margin: 0 16px 12px; padding: 12px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Actieve workout header */
+.workout-bar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 50;
+}
+.workout-bar-name { font-size: 16px; font-weight: 700; flex: 1; }
+.workout-bar-timer { font-size: 14px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+.btn-finish {
+  padding: 7px 14px; background: var(--green); border: none; border-radius: 8px;
+  color: #000; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+
+/* Oefening kaart */
+.oef-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin: 0 16px 10px; overflow: hidden;
+}
+.oef-header {
+  padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.oef-name { font-size: 15px; font-weight: 600; flex: 1; }
+.oef-tag  { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); white-space: nowrap; }
+
+/* Progressie advies banner */
+.advies-banner {
+  padding: 8px 14px; font-size: 12px; display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.advies-banner.verhoog  { background: rgba(34,197,94,.08);  color: #86efac; }
+.advies-banner.reps     { background: rgba(59,130,246,.08); color: #93c5fd; }
+.advies-banner.deload   { background: rgba(239,68,68,.08);  color: #fca5a5; }
+.advies-icon { font-size: 14px; flex-shrink: 0; }
+
+/* Set rijen */
+.set-header {
+  display: grid; grid-template-columns: 28px 1fr 1fr 1fr 36px;
+  gap: 6px; padding: 6px 14px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em; color: var(--text3);
+  border-bottom: 1px solid var(--border);
+}
+.set-row {
+  display: grid; grid-template-columns: 28px 1fr 1fr 1fr 36px;
+  gap: 6px; padding: 8px 14px; align-items: center;
+  border-bottom: 1px solid var(--border); transition: background .15s;
+}
+.set-row:last-child { border-bottom: none; }
+.set-row.done { background: rgba(34,197,94,.05); }
+.set-num { font-size: 13px; color: var(--text2); font-weight: 600; text-align: center; }
+
+/* Nummer inputs */
+.num-input {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 15px; font-weight: 600; text-align: center;
+  padding: 7px 4px; width: 100%; font-variant-numeric: tabular-nums;
+  -webkit-appearance: none; appearance: none;
+}
+.num-input:focus { outline: none; border-color: var(--accent); }
+
+/* Vinkje knop */
+.check-btn {
+  width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--surface2); cursor: pointer; display: flex; align-items: center;
+  justify-content: center; transition: all .15s; -webkit-tap-highlight-color: transparent;
+}
+.check-btn svg { width: 16px; height: 16px; stroke: var(--text3); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.check-btn.done { background: var(--green); border-color: var(--green); }
+.check-btn.done svg { stroke: #000; }
+
+/* Set toevoegen */
+.add-set-btn {
+  width: 100%; padding: 10px; background: none; border: none; border-top: 1px solid var(--border);
+  color: var(--accent); font-size: 13px; font-weight: 500; cursor: pointer; text-align: center;
+}
+
+/* Oefening toevoegen */
+.add-oef-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 0 16px 12px; padding: 13px; border: 1.5px dashed var(--border);
+  border-radius: var(--radius); background: none; color: var(--text2);
+  font-size: 14px; font-weight: 500; cursor: pointer; width: calc(100% - 32px);
+}
+.add-oef-btn:active { background: var(--surface); }
+
+/* ── RUSTTIMER ── */
+#rest-overlay {
+  position: fixed; inset: 0; background: rgba(15,17,23,.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 300; gap: 24px; padding: 32px;
+}
+.rest-ring-wrap { position: relative; width: 160px; height: 160px; }
+.rest-ring-wrap svg { transform: rotate(-90deg); }
+.rest-ring-bg   { stroke: var(--border); }
+.rest-ring-fill { stroke: var(--green); stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
+.rest-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.rest-secs   { font-size: 48px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -2px; }
+.rest-label  { font-size: 13px; color: var(--text2); }
+.rest-title  { font-size: 18px; font-weight: 600; color: var(--text2); }
+.rest-skip   { padding: 10px 28px; border: 1px solid var(--border); border-radius: 20px; background: none; color: var(--text2); font-size: 14px; cursor: pointer; }
+
+/* ── OEFENING ZOEKEN MODAL ── */
+#search-modal {
+  position: fixed; inset: 0; background: rgba(15,17,23,.95);
+  z-index: 300; display: flex; flex-direction: column; padding: 16px;
+  padding-bottom: calc(var(--safe-b) + 16px);
+}
+.search-header { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.search-input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 15px;
+  padding: 11px 14px; outline: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-cancel { background: none; border: none; color: var(--accent); font-size: 15px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.filter-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.search-results { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.search-item { padding: 12px 4px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.search-item:active { background: var(--surface); }
+.search-item-name { font-size: 14px; font-weight: 500; }
+.search-item-sub  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.search-item-tag  { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); white-space: nowrap; }
+
+/* ── WORKOUT AFRONDEN MODAL ── */
+#finish-modal {
+  position: fixed; inset: 0; background: rgba(15,17,23,.95);
+  z-index: 300; display: flex; flex-direction: column;
+  padding: 24px 16px; padding-bottom: calc(var(--safe-b) + 24px);
+  overflow-y: auto;
+}
+.finish-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.finish-sub   { font-size: 14px; color: var(--text2); margin-bottom: 24px; }
+.finish-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.finish-stat  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; }
+.finish-stat-val   { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.finish-stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+.gevoel-row { display: flex; gap: 8px; margin-bottom: 20px; }
+.gevoel-btn { flex: 1; padding: 10px 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text2); font-size: 18px; cursor: pointer; text-align: center; }
+.gevoel-btn.selected { border-color: var(--accent); background: rgba(59,130,246,.12); }
+
+.finish-label { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.finish-textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 14px;
+  padding: 12px; resize: none; height: 80px; outline: none; margin-bottom: 20px;
+  font-family: inherit;
+}
+.finish-textarea:focus { border-color: var(--accent); }
+
+.intensiteit-row { display: flex; gap: 8px; margin-bottom: 20px; }
+.int-btn { flex: 1; padding: 9px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--text2); font-size: 12px; font-weight: 500; cursor: pointer; text-align: center; }
+.int-btn.selected { border-color: var(--amber); background: rgba(245,158,11,.12); color: var(--amber); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="screens">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div id="screen-dashboard" class="screen active">
+      <div class="screen-header">
+        <div>
+          <div class="screen-title">IronTrinity</div>
+          <div class="screen-sub" id="dash-date">laden...</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div id="streak-display" class="streak-badge" style="display:none">
+            <span>🔥</span><span id="streak-count">0</span>
+          </div>
+          <div class="icon-btn" onclick="goTab('instellingen')">
+            <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div id="today-workout" class="workout-today" onclick="goTab('workout')">
+        <div class="wt-label">Vandaag gepland</div>
+        <div class="wt-name" id="today-name">Laden...</div>
+        <div class="wt-meta"><span id="today-oef">—</span><span id="today-sets"></span></div>
+        <button class="btn-start">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Start workout
+        </button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="card-label">Gewicht</div>
+          <div id="dash-gewicht" class="weight-pill"><span class="weight-big">—</span><span class="weight-unit">kg</span></div>
+          <div class="stat-delta" id="dash-gewicht-delta"></div>
+        </div>
+        <div class="stat-card">
+          <div class="card-label">Deze week</div>
+          <div class="stat-value" id="dash-week-count">—</div>
+          <div class="stat-label">workouts</div>
+          <div class="stat-delta" id="dash-week-vol"></div>
+        </div>
+      </div>
+
+      <div class="kcal-card">
+        <div class="ring-wrap">
+          <svg width="88" height="88" viewBox="0 0 88 88">
+            <circle class="ring-bg" cx="44" cy="44" r="36" fill="none" stroke-width="7"/>
+            <circle class="ring-fill" id="ring-fill" cx="44" cy="44" r="36" fill="none" stroke-width="7" stroke-dasharray="226" stroke-dashoffset="226"/>
+          </svg>
+          <div class="ring-center"><div class="ring-kcal" id="ring-kcal">0</div><div class="ring-unit">kcal</div></div>
+        </div>
+        <div class="kcal-details">
+          <div class="card-label" style="margin-bottom:10px">Vandaag gegeten</div>
+          <div class="macro-row"><span class="macro-name">Eiwit</span><span class="macro-val" id="macro-eiwit">— g</span></div>
+          <div class="macro-bar-wrap"><div class="macro-bar" id="bar-eiwit" style="width:0%;background:#3B82F6"></div></div>
+          <div class="macro-row"><span class="macro-name">Koolhyd.</span><span class="macro-val" id="macro-koolhyd">— g</span></div>
+          <div class="macro-bar-wrap"><div class="macro-bar" id="bar-koolhyd" style="width:0%;background:#F59E0B"></div></div>
+          <div class="macro-row" style="margin-bottom:0"><span class="macro-name">Vet</span><span class="macro-val" id="macro-vet">— g</span></div>
+          <div class="macro-bar-wrap" style="margin-bottom:0"><div class="macro-bar" id="bar-vet" style="width:0%;background:#22C55E"></div></div>
+        </div>
+      </div>
+
+      <div id="pr-section" style="display:none">
+        <div class="section-head"><h2>Recente PRs</h2></div>
+        <div style="padding:0 16px;margin-bottom:12px;"><div class="pr-list" id="pr-list"></div></div>
+      </div>
+
+      <div class="section-head">
+        <h2>Laatste workouts</h2>
+        <button class="see-all" onclick="goTab('voortgang')">Alles →</button>
+      </div>
+      <div class="card" id="history-card">
+        <div class="skel-line skeleton" style="width:80%"></div>
+        <div class="skel-line skeleton" style="width:60%"></div>
+        <div class="skel-line skeleton" style="width:70%"></div>
+      </div>
+    </div>
+
+    <!-- ══ WORKOUT ══ -->
+    <div id="screen-workout" class="screen">
+
+      <div class="screen-header" style="padding-bottom:0;margin-bottom:0">
+        <div><div class="screen-title">Training</div></div>
+      </div>
+      <div style="display:flex;gap:0;margin:12px 16px 0;background:var(--surface2);border-radius:10px;padding:3px">
+        <button id="subtab-workouts" onclick="showSubTab('workouts')" style="flex:1;padding:8px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Workouts</button>
+        <button id="subtab-logboek" onclick="showSubTab('logboek')" style="flex:1;padding:8px;border:none;border-radius:8px;background:transparent;color:var(--text2);font-size:14px;font-weight:600;cursor:pointer">Logboek</button>
+      </div>
+
+      <!-- Workouts lijst -->
+      <div id="wv-workouts" class="workout-subview" style="padding-top:12px">
+        <div style="padding:0 16px 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">Mijn workouts</div>
+          <button onclick="openNieuweWorkout()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nieuw
+          </button>
+        </div>
+        <div id="workout-lijst" style="padding:0 16px"><div style="text-align:center;color:var(--text2);font-size:13px;padding:24px 0">Laden...</div></div>
+      </div>
+
+      <!-- Nieuwe workout aanmaken -->
+      <div id="wv-nieuw" class="workout-subview" style="display:none">
+        <div class="screen-header">
+          <button class="icon-btn" onclick="showSubview('wv-workouts');loadWorkoutLijst()">
+            <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <div style="flex:1;margin-left:10px"><div class="screen-title">Nieuwe workout</div></div>
+          <button onclick="slaWorkoutOp()" style="padding:8px 16px;background:var(--green);border:none;border-radius:8px;color:#000;font-size:14px;font-weight:700;cursor:pointer">Opslaan</button>
+        </div>
+        <div style="padding:0 16px;margin-bottom:12px">
+          <input id="nieuw-naam" type="text" placeholder="Workout naam (bijv. Chest Day)"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;font-weight:600;padding:12px 14px;outline:none;font-family:inherit"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div id="nieuw-oef-lijst" style="padding:0 16px"></div>
+        <button class="add-oef-btn" onclick="openSearchModal('nieuw')" style="margin:0 16px 12px;width:calc(100% - 32px)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Oefening toevoegen
+        </button>
+        <div class="card" style="margin:0 16px 12px;padding:14px">
+          <div class="card-label" style="margin-bottom:10px">Spieren in deze workout</div>
+          <div class="dummy-wrap">
+            <div class="dummy-svg-col">
+              <svg class="dummy-svg" id="nieuw-dummy-front" viewBox="600 1100 2000 4400" width="110" height="240">
+                <g transform="translate(0,6120) scale(1,-1)" id="nieuw-dummy-front-g"></g>
+              </svg>
+              <div class="dummy-svg-label">Voor</div>
+            </div>
+            <div class="dummy-svg-col">
+              <svg class="dummy-svg" id="nieuw-dummy-back" viewBox="3100 1100 2300 4400" width="110" height="240">
+                <g transform="translate(0,6120) scale(1,-1)" id="nieuw-dummy-back-g"></g>
+              </svg>
+              <div class="dummy-svg-label">Achter</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logboek -->
+      <div id="wv-logboek" class="workout-subview" style="display:none;padding-top:12px">
+        <div style="padding:0 16px 8px">
+          <div style="font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Kies een workout</div>
+          <div id="logboek-lijst"><div style="text-align:center;color:var(--text2);font-size:13px;padding:16px 0">Laden...</div></div>
+          <button class="btn-secondary" onclick="startLegeWorkout()" style="margin-top:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
+            Lege workout starten
+          </button>
+        </div>
+      </div>
+
+      <!-- Kies scherm (legacy, verborgen) -->
+      <div id="wv-kies" class="workout-subview" style="display:none">
+        <div class="screen-header">
+          <div>
+            <div class="screen-title">Workout</div>
+            <div class="screen-sub" id="wv-kies-sub">Kies een schema of start vrij</div>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>Schema's</h2></div>
+        <div class="schema-grid" id="schema-grid">
+          <div class="schema-btn selected" onclick="selectSchema(null, null)">
+            <div class="schema-btn-name">Vrije workout</div>
+            <div class="schema-btn-sub">Zelf oefeningen kiezen</div>
+          </div>
+        </div>
+
+        <div id="dag-sectie" style="display:none">
+          <div class="section-head"><h2>Dag kiezen</h2></div>
+          <div class="dag-row" id="dag-row"></div>
+        </div>
+
+        <button class="btn-primary" id="btn-start-workout" onclick="startWorkout()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Start workout
+        </button>
+      </div>
+
+      <!-- SUBVIEW: actieve workout -->
+      <div id="wv-actief" class="workout-subview" style="display:none">
+        <div class="workout-bar">
+          <button class="icon-btn" onclick="confirmStopWorkout()" style="width:32px;height:32px;flex-shrink:0">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <div class="workout-bar-name" id="actief-naam">Workout</div>
+          <div class="workout-bar-timer" id="actief-timer">00:00</div>
+          <button class="btn-finish" onclick="openFinishModal()">Klaar</button>
+        </div>
+
+        <div id="oef-lijst" style="padding-top:12px"></div>
+
+        <!-- MUSCLE DUMMY -->
+        <div id="dummy-container" class="card" style="margin:0 16px 10px;padding:14px">
+          <div class="card-label" style="margin-bottom:10px">Spieren getraind</div>
+          <div class="dummy-wrap">
+            <div class="dummy-svg-col">
+              <svg class="dummy-svg" id="dummy-front" viewBox="600 1100 2000 4400" width="110" height="240">
+                <g transform="translate(0,6120) scale(1,-1)" id="dummy-front-g">
+                  <!-- paths worden via JS ingevoegd -->
+                </g>
+              </svg>
+              <div class="dummy-svg-label">Voor</div>
+            </div>
+            <div class="dummy-svg-col">
+              <svg class="dummy-svg" id="dummy-back" viewBox="3100 1100 2300 4400" width="110" height="240">
+                <g transform="translate(0,6120) scale(1,-1)" id="dummy-back-g">
+                  <!-- paths worden via JS ingevoegd -->
+                </g>
+              </svg>
+              <div class="dummy-svg-label">Achter</div>
+            </div>
+          </div>
+          <div class="dummy-legend">
+            <div class="dummy-legend-item"><div class="dummy-legend-dot" style="background:#2E3250"></div>Niet getraind</div>
+            <div class="dummy-legend-item"><div class="dummy-legend-dot" style="background:#7f1d1d"></div>Licht</div>
+            <div class="dummy-legend-item"><div class="dummy-legend-dot" style="background:#dc2626"></div>Matig</div>
+            <div class="dummy-legend-item"><div class="dummy-legend-dot" style="background:#fca5a5"></div>Intensief</div>
+          </div>
+        </div>
+
+        <button class="add-oef-btn" onclick="openSearchModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Oefening toevoegen
+        </button>
+      </div>
+
+    </div><!-- /screen-workout -->
+
+    <!-- ══ VOORTGANG ══ -->
+    <div id="screen-voortgang" class="screen">
+      <div class="screen-header">
+        <div><div class="screen-title">Voortgang</div><div class="screen-sub">PR's & grafieken</div></div>
+      </div>
+      <div class="section-head"><h2>Persoonlijke records</h2><button class="see-all" onclick="loadPRs()">↻</button></div>
+      <div id="pr-dashboard" class="card"><div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Laden...</div></div>
+      <div class="section-head"><h2>Voortgang per oefening</h2></div>
+      <div class="card" style="padding:14px">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+          <select id="vg-oefening-select" onchange="laadVoortgangGrafiek()" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:8px 10px;outline:none"><option value="">Kies een oefening...</option></select>
+          <select id="vg-periode-select" onchange="laadVoortgangGrafiek()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 10px;outline:none">
+            <option value="30d">30d</option><option value="90d" selected>90d</option><option value="180d">180d</option><option value="all">Alles</option>
+          </select>
+        </div>
+        <canvas id="vg-chart" height="160" style="width:100%;display:none"></canvas>
+        <div id="vg-leeg" style="text-align:center;color:var(--text2);font-size:13px;padding:20px 0">Kies een oefening om de grafiek te laden</div>
+        <div id="vg-stats" style="display:flex;gap:12px;margin-top:12px;justify-content:center"></div>
+      </div>
+      <div class="section-head"><h2>Volume deze week</h2></div>
+      <div class="card" id="volume-card"><div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Laden...</div></div>
+      <div class="section-head"><h2>Kalender</h2></div>
+      <div class="card" id="kalender-card" style="padding:12px"><div id="kalender-wrap"></div></div>
+    </div>
+
+    <!-- ══ MAALTIJDEN ══ -->
+    <div id="screen-maaltijden" class="screen">
+      <div class="screen-header">
+        <div>
+          <div class="screen-title">Maaltijden</div>
+          <div class="screen-sub" id="meal-datum-sub">Vandaag</div>
+        </div>
+        <button class="icon-btn" onclick="openMaaltijdModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+
+      <!-- MACRO METER: resterend + balken -->
+      <div class="card" style="margin:0 16px 12px;padding:16px">
+        <!-- Kcal resterend groot -->
+        <div style="text-align:center;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:4px">Resterend</div>
+          <div style="display:flex;align-items:baseline;justify-content:center;gap:6px">
+            <span id="meal-kcal-rest" style="font-size:36px;font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums;color:var(--text)">—</span>
+            <span style="font-size:14px;color:var(--text2)">kcal</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">van <span id="meal-kcal-doel">2400</span> · gegeten: <span id="meal-kcal-gegeten">0</span></div>
+          <!-- Hoofd kcal balk -->
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:10px">
+            <div id="meal-bar-kcal-main" style="height:100%;width:0%;border-radius:3px;background:var(--accent);transition:width .5s ease"></div>
+          </div>
+        </div>
+
+        <!-- Drie macro balken -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <!-- Eiwit -->
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+              <span style="color:var(--text2);font-weight:600">Eiwit</span>
+              <span id="meal-eiwit-rest" style="font-weight:700;color:#3B82F6;font-variant-numeric:tabular-nums">—</span>
+            </div>
+            <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+              <div id="meal-bar-eiwit" style="height:100%;width:0%;border-radius:3px;background:#3B82F6;transition:width .5s ease"></div>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px;text-align:center"><span id="meal-eiwit-van">0</span>g van <span id="meal-eiwit-doel-val">160</span>g</div>
+          </div>
+          <!-- Koolhyd -->
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+              <span style="color:var(--text2);font-weight:600">Koolh.</span>
+              <span id="meal-koolhyd-rest" style="font-weight:700;color:#F59E0B;font-variant-numeric:tabular-nums">—</span>
+            </div>
+            <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+              <div id="meal-bar-koolhyd" style="height:100%;width:0%;border-radius:3px;background:#F59E0B;transition:width .5s ease"></div>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px;text-align:center"><span id="meal-koolhyd-van">0</span>g van <span id="meal-koolhyd-doel-val">250</span>g</div>
+          </div>
+          <!-- Vet -->
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+              <span style="color:var(--text2);font-weight:600">Vet</span>
+              <span id="meal-vet-rest" style="font-weight:700;color:#22C55E;font-variant-numeric:tabular-nums">—</span>
+            </div>
+            <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+              <div id="meal-bar-vet" style="height:100%;width:0%;border-radius:3px;background:#22C55E;transition:width .5s ease"></div>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px;text-align:center"><span id="meal-vet-van">0</span>g van <span id="meal-vet-doel-val">70</span>g</div>
+          </div>
+        </div>
+
+        <!-- Coach advies -->
+        <div id="meal-coach" style="margin-top:12px;display:none;padding:8px 12px;border-radius:8px;font-size:12px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:#93c5fd"></div>
+      </div>
+
+      <!-- Snelle favorieten rij -->
+      <div id="meal-snelle-fav" style="display:none;padding:0 16px;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Snel toevoegen</div>
+        <div id="meal-fav-chips" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none"></div>
+      </div>
+
+      <!-- Tijdlijn maaltijden lijst -->
+      <div class="section-head">
+        <h2>Vandaag gegeten</h2>
+        <button class="see-all" onclick="openMaaltijdModal()" style="display:flex;align-items:center;gap:4px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Toevoegen
+        </button>
+      </div>
+      <div id="meal-tijdlijn" style="padding:0 16px;margin-bottom:80px">
+        <div style="text-align:center;color:var(--text2);font-size:13px;padding:24px 0">
+          <div style="font-size:28px;margin-bottom:8px">🍽️</div>
+          Nog niets gelogd vandaag
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ GEWICHT ══ -->
+    <div id="screen-gewicht" class="screen">
+      <div class="screen-header">
+        <div>
+          <div class="screen-title">Gewicht</div>
+          <div class="screen-sub" id="gew-sub">Verloop bijhouden</div>
+        </div>
+        <button class="icon-btn" onclick="openGewichtModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+
+      <!-- Huidig gewicht + doel -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="card-label">Huidig</div>
+          <div class="weight-pill"><span class="weight-big" id="gew-huidig">—</span><span class="weight-unit">kg</span></div>
+          <div class="stat-delta" id="gew-trend"></div>
+        </div>
+        <div class="stat-card">
+          <div class="card-label">7d gemiddelde</div>
+          <div class="weight-pill"><span class="weight-big" id="gew-avg">—</span><span class="weight-unit">kg</span></div>
+          <div class="stat-delta" id="gew-change"></div>
+        </div>
+      </div>
+
+      <!-- Mini grafiek (canvas) -->
+      <div class="card" style="padding:12px">
+        <div class="card-label" style="margin-bottom:8px">Afgelopen 30 dagen</div>
+        <canvas id="gew-chart" height="120" style="width:100%"></canvas>
+      </div>
+
+      <!-- Log lijst -->
+      <div class="section-head"><h2>Recent</h2></div>
+      <div class="card" id="gew-lijst">
+        <div style="text-align:center;color:var(--text2);font-size:13px;padding:12px 0">Laden...</div>
+      </div>
+
+      <button class="btn-secondary" onclick="openGewichtModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Gewicht toevoegen
+      </button>
+    </div>
+
+    <!-- ══ INSTELLINGEN ══ -->
+    <div id="screen-instellingen" class="screen">
+      <div class="screen-header">
+        <div><div class="screen-title">Instellingen</div><div class="screen-sub">Doelen & koppeling</div></div>
+      </div>
+
+      <!-- ── KOPPELING — meest belangrijk, bovenaan ── -->
+      <div class="section-head"><h2>Google Sheets koppeling</h2></div>
+      <div class="card" style="padding:0">
+        <div class="inst-row" style="flex-direction:column;align-items:flex-start;gap:10px">
+          <div class="inst-label">
+            <div class="inst-key">Apps Script URL</div>
+            <div class="inst-sub">Plak hier de Web App URL van je Google Apps Script</div>
+          </div>
+          <div style="width:100%;display:flex;flex-direction:column;gap:8px">
+            <input id="inst-api-url"
+              type="url"
+              placeholder="https://script.google.com/macros/s/..."
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:10px 12px;outline:none;font-family:inherit;word-break:break-all"
+              onfocus="this.style.borderColor='var(--accent)'"
+              onblur="this.style.borderColor='var(--border)'">
+            <div style="display:flex;gap:8px">
+              <button onclick="slaApiUrlOp()" style="flex:1;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Opslaan & testen</button>
+            </div>
+            <div id="inst-api-status" style="font-size:12px;color:var(--text2);padding:2px 0">Nog niet gekoppeld</div>
+          </div>
+        </div>
+        <div class="inst-row" style="border-bottom:none">
+          <div class="inst-label">
+            <div class="inst-key">Hoe kom ik aan de URL?</div>
+            <div class="inst-sub">Apps Script → Implementeren → Web App → URL kopiëren</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PERSOONLIJK ── -->
+      <div class="section-head"><h2>Persoonlijk</h2></div>
+      <div class="card" style="padding:0">
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Naam</div><div class="inst-sub">Weergegeven in de app</div></div>
+          <input class="inst-input" id="inst-naam" type="text" placeholder="Jouw naam" onchange="slaInstelling('gebruikersnaam',this.value)">
+        </div>
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Lichaamsgewicht</div><div class="inst-sub">Voor calorie berekening</div></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="inst-input" id="inst-gewicht" type="number" inputmode="decimal" step="0.1" placeholder="82" style="width:70px;text-align:center" onchange="slaInstelling('lichaamsgewicht_kg',this.value);updateGebruikerKg(this.value)">
+            <span style="font-size:13px;color:var(--text2)">kg</span>
+          </div>
+        </div>
+        <div class="inst-row" style="border-bottom:none">
+          <div class="inst-label"><div class="inst-key">Doelgewicht</div></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="inst-input" id="inst-doelgewicht" type="number" inputmode="decimal" step="0.1" placeholder="80" style="width:70px;text-align:center" onchange="slaInstelling('doelgewicht_kg',this.value)">
+            <span style="font-size:13px;color:var(--text2)">kg</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VOEDINGSDOELEN ── -->
+      <div class="section-head"><h2>Voedingsdoelen (per dag)</h2></div>
+      <div class="card" style="padding:0">
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Calorieën</div></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="inst-input" id="inst-kcal" type="number" inputmode="numeric" placeholder="2400" style="width:80px;text-align:center" onchange="slaDoelInstelling('kcal',this.value)">
+            <span style="font-size:13px;color:var(--text2)">kcal</span>
+          </div>
+        </div>
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Eiwit</div></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="inst-input" id="inst-eiwit" type="number" inputmode="numeric" placeholder="160" style="width:80px;text-align:center" onchange="slaDoelInstelling('eiwit',this.value)">
+            <span style="font-size:13px;color:var(--text2)">g</span>
+          </div>
+        </div>
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Koolhydraten</div></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="inst-input" id="inst-koolhyd" type="number" inputmode="numeric" placeholder="250" style="width:80px;text-align:center" onchange="slaDoelInstelling('koolhyd',this.value)">
+            <span style="font-size:13px;color:var(--text2)">g</span>
+          </div>
+        </div>
+        <div class="inst-row" style="border-bottom:none">
+          <div class="inst-label"><div class="inst-key">Vet</div></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input class="inst-input" id="inst-vet" type="number" inputmode="numeric" placeholder="70" style="width:80px;text-align:center" onchange="slaDoelInstelling('vet',this.value)">
+            <span style="font-size:13px;color:var(--text2)">g</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PROGRESSIE ── -->
+      <div class="section-head"><h2>Progressie</h2></div>
+      <div class="card" style="padding:0">
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Rep range min</div><div class="inst-sub">Standaard ondergrens</div></div>
+          <input class="inst-input" id="inst-repmin" type="number" inputmode="numeric" placeholder="8" style="width:60px;text-align:center" onchange="slaInstelling('rep_min_standaard',this.value)">
+        </div>
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Rep range max</div><div class="inst-sub">Standaard bovengrens</div></div>
+          <input class="inst-input" id="inst-repmax" type="number" inputmode="numeric" placeholder="12" style="width:60px;text-align:center" onchange="slaInstelling('rep_max_standaard',this.value)">
+        </div>
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Sprong compound</div><div class="inst-sub">Bench, row, press (kg)</div></div>
+          <input class="inst-input" id="inst-sprong-c" type="number" inputmode="decimal" step="0.5" placeholder="2.5" style="width:70px;text-align:center" onchange="slaInstelling('gewichtssprong_compound',this.value)">
+        </div>
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Sprong lower body</div><div class="inst-sub">Squat, deadlift (kg)</div></div>
+          <input class="inst-input" id="inst-sprong-l" type="number" inputmode="decimal" step="0.5" placeholder="5" style="width:70px;text-align:center" onchange="slaInstelling('gewichtssprong_lower',this.value)">
+        </div>
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Sprong isolatie</div><div class="inst-sub">Curls, extensions (kg)</div></div>
+          <input class="inst-input" id="inst-sprong-i" type="number" inputmode="decimal" step="0.25" placeholder="1.25" style="width:70px;text-align:center" onchange="slaInstelling('gewichtssprong_isolatie',this.value)">
+        </div>
+        <div class="inst-row" style="border-bottom:none">
+          <div class="inst-label"><div class="inst-key">Deload na</div><div class="inst-sub">Mislukte sessies op rij</div></div>
+          <input class="inst-input" id="inst-deload" type="number" inputmode="numeric" placeholder="3" style="width:60px;text-align:center" onchange="slaInstelling('deload_na_mislukkingen',this.value)">
+        </div>
+      </div>
+
+      <div class="section-head"><h2>App info</h2></div>
+      <div class="card" style="padding:0">
+        <div class="inst-row">
+          <div class="inst-label"><div class="inst-key">Versie</div></div>
+          <span style="font-size:13px;color:var(--text2)">IronTrinity 1.0</span>
+        </div>
+        <div class="inst-row" style="border-bottom:none">
+          <div class="inst-label"><div class="inst-key">Sheets sync</div></div>
+          <div id="inst-sync-status" style="font-size:12px;color:var(--text2)">—</div>
+        </div>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <nav id="nav">
+    <button class="tab active" data-tab="dashboard" onclick="goTab('dashboard')">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Dashboard
+    </button>
+    <button class="tab" data-tab="workout" onclick="goTab('workout')">
+      <svg viewBox="0 0 24 24"><path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M4 4l2 2M18 4l2 2M4 20l2-2M18 20l2-2"/></svg>Workout
+    </button>
+    <button class="tab" data-tab="voortgang" onclick="goTab('voortgang')">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Voortgang
+    </button>
+    <button class="tab" data-tab="maaltijden" onclick="goTab('maaltijden')">
+      <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Maaltijden
+    </button>
+    <button class="tab" data-tab="gewicht" onclick="goTab('gewicht')">
+      <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v4"/><path d="M12 12l4-4"/></svg>Gewicht
+    </button>
+    <button class="tab" data-tab="instellingen" onclick="goTab('instellingen')">
+      <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1-1-1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>Instellingen
+    </button>
+  </nav>
+</div>
+
+<!-- ══ RUSTTIMER OVERLAY ══ -->
+<div id="rest-overlay" style="display:none">
+  <div class="rest-title">Rust</div>
+  <div class="rest-ring-wrap">
+    <svg width="160" height="160" viewBox="0 0 160 160">
+      <circle class="rest-ring-bg"   cx="80" cy="80" r="68" fill="none" stroke-width="8"/>
+      <circle class="rest-ring-fill" id="rest-ring" cx="80" cy="80" r="68" fill="none" stroke-width="8"
+        stroke-dasharray="427" stroke-dashoffset="0"/>
+    </svg>
+    <div class="rest-center">
+      <div class="rest-secs" id="rest-secs">90</div>
+      <div class="rest-label">seconden</div>
+    </div>
+  </div>
+  <button class="rest-skip" onclick="skipRest()">Overslaan</button>
+</div>
+
+<!-- ══ OEFENING ZOEKEN ══ -->
+<div id="search-modal" style="display:none">
+  <div class="search-header">
+    <input class="search-input" id="search-input" type="text" placeholder="Zoek oefening..." oninput="filterSearch()" autocomplete="off">
+    <button class="search-cancel" onclick="closeSearchModal()">Annuleer</button>
+  </div>
+  <div class="filter-row" id="filter-row">
+    <div class="filter-chip active" data-filter="" onclick="setFilter(this,'')">Alles</div>
+    <div class="filter-chip" data-filter="borst" onclick="setFilter(this,'borst')">Borst</div>
+    <div class="filter-chip" data-filter="rug" onclick="setFilter(this,'rug')">Rug</div>
+    <div class="filter-chip" data-filter="schouders" onclick="setFilter(this,'schouders')">Schouders</div>
+    <div class="filter-chip" data-filter="biceps" onclick="setFilter(this,'biceps')">Biceps</div>
+    <div class="filter-chip" data-filter="triceps" onclick="setFilter(this,'triceps')">Triceps</div>
+    <div class="filter-chip" data-filter="quads" onclick="setFilter(this,'quads')">Quads</div>
+    <div class="filter-chip" data-filter="hamstrings" onclick="setFilter(this,'hamstrings')">Hamstrings</div>
+    <div class="filter-chip" data-filter="billen" onclick="setFilter(this,'billen')">Billen</div>
+    <div class="filter-chip" data-filter="core" onclick="setFilter(this,'core')">Core</div>
+    <div class="filter-chip" data-filter="kuiten" onclick="setFilter(this,'kuiten')">Kuiten</div>
+  </div>
+  <div class="search-results" id="search-results"></div>
+</div>
+
+<!-- ══ WORKOUT AFRONDEN MODAL ══ -->
+<div id="finish-modal" style="display:none">
+  <div class="finish-title">Workout afronden 💪</div>
+  <div class="finish-sub" id="finish-sub">Goed gedaan!</div>
+  <div class="finish-stats">
+    <div class="finish-stat"><div class="finish-stat-val" id="fin-duur">—</div><div class="finish-stat-label">minuten</div></div>
+    <div class="finish-stat"><div class="finish-stat-val" id="fin-sets">—</div><div class="finish-stat-label">sets</div></div>
+    <div class="finish-stat"><div class="finish-stat-val" id="fin-vol">—</div><div class="finish-stat-label">ton volume</div></div>
+  </div>
+
+  <div class="finish-label">Hoe voelde de workout?</div>
+  <div class="gevoel-row">
+    <button class="gevoel-btn" data-val="1" onclick="selectGevoel(1)">😫</button>
+    <button class="gevoel-btn" data-val="2" onclick="selectGevoel(2)">😕</button>
+    <button class="gevoel-btn" data-val="3" onclick="selectGevoel(3)">😐</button>
+    <button class="gevoel-btn" data-val="4" onclick="selectGevoel(4)">😊</button>
+    <button class="gevoel-btn" data-val="5" onclick="selectGevoel(5)">🔥</button>
+  </div>
+
+  <div class="finish-label">Intensiteit</div>
+  <div class="intensiteit-row">
+    <button class="int-btn" data-met="2.5" onclick="selectInt(this,'licht',2.5)">Licht</button>
+    <button class="int-btn selected" data-met="3.5" onclick="selectInt(this,'normaal',3.5)">Normaal</button>
+    <button class="int-btn" data-met="5.8" onclick="selectInt(this,'intensief',5.8)">Intensief</button>
+    <button class="int-btn" data-met="8.0" onclick="selectInt(this,'circuit',8.0)">Circuit</button>
+  </div>
+
+  <div class="finish-label">Notitie (optioneel)</div>
+  <textarea class="finish-textarea" id="finish-notitie" placeholder="Hoe ging het?"></textarea>
+
+  <button class="btn-primary" onclick="saveWorkout()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Opslaan naar Sheets
+  </button>
+  <button class="btn-secondary" onclick="closeFinishModal()">Terug</button>
+</div>
+
+<!-- ══ MAALTIJD TOEVOEGEN MODAL ══ -->
+<div id="maaltijd-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;flex-direction:column;overflow-y:auto">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:1">
+    <button class="icon-btn" onclick="closeMaaltijdModal()">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
+    <div style="font-size:18px;font-weight:700">Maaltijd toevoegen</div>
+  </div>
+
+  <div style="padding:16px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)">
+
+    <!-- Recente maaltijden als snelle keuze -->
+    <div id="modal-recente-wrap" style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Recent</div>
+      <div id="modal-recente-lijst" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin-bottom:16px"></div>
+
+    <!-- Naam -->
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">Naam maaltijd</div>
+    <input id="meal-naam" type="text" placeholder="Bijv. Post-workout shake"
+      style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;padding:11px 14px;outline:none;margin-bottom:14px;font-family:inherit"
+      oninput="zoekRecenteMaaltijd(this.value)">
+
+    <!-- Ingrediënten notitie -->
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">Ingrediënten / notitie <span style="font-weight:400;color:var(--text3)">(optioneel)</span></div>
+    <textarea id="meal-ingredienten" placeholder="Bijv: 80g havermout, 200ml melk, 1 banaan..."
+      style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;padding:10px 14px;outline:none;margin-bottom:14px;font-family:inherit;resize:none;height:60px"></textarea>
+
+    <!-- Macros grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">Kcal</div>
+        <input id="meal-kcal" type="number" inputmode="numeric" placeholder="0"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:18px;font-weight:700;padding:11px 14px;outline:none;text-align:center">
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">Eiwit (g)</div>
+        <input id="meal-eiwit-in" type="number" inputmode="decimal" placeholder="0"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:#3B82F6;font-size:18px;font-weight:700;padding:11px 14px;outline:none;text-align:center">
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">Koolhyd. (g)</div>
+        <input id="meal-koolhyd-in" type="number" inputmode="decimal" placeholder="0"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:#F59E0B;font-size:18px;font-weight:700;padding:11px 14px;outline:none;text-align:center">
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">Vet (g)</div>
+        <input id="meal-vet-in" type="number" inputmode="decimal" placeholder="0"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:#22C55E;font-size:18px;font-weight:700;padding:11px 14px;outline:none;text-align:center">
+      </div>
+    </div>
+
+    <!-- Favoriet checkbox -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius)">
+      <input type="checkbox" id="meal-favoriet" style="width:18px;height:18px;accent-color:var(--accent)">
+      <label for="meal-favoriet" style="font-size:14px;color:var(--text2)">Opslaan als favoriet (snel toevoegen)</label>
+    </div>
+
+    <button class="btn-primary" onclick="saveMaaltijd()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Opslaan
+    </button>
+  </div>
+</div>
+
+<!-- ══ GEWICHT TOEVOEGEN MODAL ══ -->
+<div id="gewicht-modal" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,.96);z-index:300;flex-direction:column;padding:24px 16px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)">
+  <div style="font-size:20px;font-weight:700;margin-bottom:6px">Gewicht loggen</div>
+  <div style="font-size:14px;color:var(--text2);margin-bottom:24px" id="gew-modal-datum">Vandaag</div>
+  <div style="text-align:center;margin-bottom:28px">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:12px">Gewicht (kg)</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px">
+      <button onclick="adjustGewicht(-0.1)" style="width:44px;height:44px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:22px;cursor:pointer;line-height:1">−</button>
+      <input id="gew-input" type="number" inputmode="decimal" step="0.1" min="30" max="300" style="width:120px;background:var(--surface2);border:1px solid var(--accent);border-radius:var(--radius);color:var(--text);font-size:32px;font-weight:700;padding:12px;outline:none;text-align:center;font-variant-numeric:tabular-nums">
+      <button onclick="adjustGewicht(0.1)" style="width:44px;height:44px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:22px;cursor:pointer;line-height:1">+</button>
+    </div>
+  </div>
+  <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Moment</div>
+  <div style="display:flex;gap:8px;margin-bottom:20px">
+    <button class="dag-chip selected" id="gm-nuchter" onclick="selectGewMoment(this,'nuchter')">Nuchter</button>
+    <button class="dag-chip" id="gm-ochtend" onclick="selectGewMoment(this,'ochtend')">Ochtend</button>
+    <button class="dag-chip" id="gm-avond" onclick="selectGewMoment(this,'avond')">Avond</button>
+  </div>
+  <button class="btn-primary" onclick="saveGewicht()">Opslaan</button>
+  <button class="btn-secondary" style="margin-top:8px" onclick="closeGewichtModal()">Annuleer</button>
+</div>
+
+<!-- ══ OEFENING INFO MODAL ══ -->
+<div id="oef-info-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:400;flex-direction:column;overflow-y:auto">
+  <div style="display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:1">
+    <button class="icon-btn" onclick="sluitOefInfoModal()"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+    <div id="oef-info-naam" style="font-size:18px;font-weight:700"></div>
+  </div>
+  <div style="padding:16px;background:var(--surface);border-bottom:1px solid var(--border)">
+    <div class="dummy-wrap" style="justify-content:center">
+      <div class="dummy-svg-col"><svg class="dummy-svg" id="info-dummy-front" viewBox="600 1100 2000 4400" width="120" height="260"><g transform="translate(0,6120) scale(1,-1)" id="info-dummy-front-g"></g></svg><div class="dummy-svg-label">Voor</div></div>
+      <div class="dummy-svg-col"><svg class="dummy-svg" id="info-dummy-back" viewBox="3100 1100 2300 4400" width="120" height="260"><g transform="translate(0,6120) scale(1,-1)" id="info-dummy-back-g"></g></svg><div class="dummy-svg-label">Achter</div></div>
+    </div>
+  </div>
+  <div style="padding:16px;display:flex;flex-direction:column;gap:10px" id="oef-info-details"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG & GLOBALS (Nu bovenaan en goed geïnitialiseerd)
+// ═══════════════════════════════════════════════════════
+let API = localStorage.getItem("gl_api_url") || "https://script.google.com/macros/s/AKfycbx4TxRPmRl3D5hK-yudl2_4jNYh0k8zdCMpmZdgQ9RI-I5ME5fSNcYWokFL2E14B6s/exec";
+let DOELEN = { kcal: 2400, eiwit: 160, koolhyd: 250, vet: 70 };
+let GEBRUIKER_KG = 82;
+
+// Essentiële helper functies die bovenaan moeten staan
+function openNieuweWorkout() {
+  nieuweWorkoutOefeningen = [];
+  const naamEl = document.getElementById('nieuw-naam');
+  if (naamEl) naamEl.value = '';
+  renderNieuweOefeningen();
+  renderNieuweWerkout_Dummy();
+  showSubview('wv-nieuw');
+}
+
+function renderNieuweOefeningen() {
+  const el = document.getElementById('nieuw-oef-lijst');
+  if (!el) return;
+  if (!nieuweWorkoutOefeningen.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:13px;padding:16px 0">Nog geen oefeningen — voeg er een toe</div>';
+    return;
+  }
+  el.innerHTML = nieuweWorkoutOefeningen.map((oef, i) =>
+    `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600">${oef.naam}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px">${oef.sets}×${oef.repMin}–${oef.repMax} · ${oef.rust}s rust</div>
+      </div>
+      <button onclick="verwijderNieuweOef(${i})" style="width:28px;height:28px;border-radius:6px;background:none;border:1px solid var(--border);color:var(--red);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">×</button>
+    </div>`
+  ).join('');
+}
+
+function verwijderNieuweOef(i) {
+  nieuweWorkoutOefeningen.splice(i, 1);
+  renderNieuweOefeningen();
+  renderNieuweWerkout_Dummy();
+}
+
+function renderNieuweWerkout_Dummy() {
+  const setsPerGroep = {};
+  nieuweWorkoutOefeningen.forEach(oef => {
+    const groep = oef.db?.spiergroep_hoofd || bepaalSpiergroep(oef.naam.toLowerCase());
+    if (groep) setsPerGroep[groep] = (setsPerGroep[groep]||0) + oef.sets;
+    const sec = oef.db?.spiergroep_sec || '';
+    if (sec) sec.split(',').forEach(s => {
+      const g = s.trim().toLowerCase();
+      if (g) setsPerGroep[g] = (setsPerGroep[g]||0) + Math.ceil(oef.sets/2);
+    });
+  });
+  renderDummyNaarElement('nieuw-dummy-front-g', 'nieuw-dummy-back-g', setsPerGroep);
+}
+
+function renderDummyNaarElement(frontId, backId, setsPerGroep) {
+  const frontG = document.getElementById(frontId);
+  const backG  = document.getElementById(backId);
+  if (!frontG || !backG) return;
+  let frontHTML = '', backHTML = '';
+  DUMMY_PADEN.forEach((d, i) => {
+    let kleur = '#2E3250';
+    for (const [groep, info] of Object.entries(DUMMY_GROEPEN)) {
+      if (info.paden.includes(i)) {
+        const k = getDummyKleur(setsPerGroep[groep]||0);
+        if (k !== '#2E3250') kleur = k;
+        break;
+      }
+    }
+    const path = `<path d="${d}" fill="${kleur}" stroke="#0F1117" stroke-width="12" style="transition:fill .4s ease"/>`;
+    const xMatch = d.match(/M(\d+)/);
+    const x = xMatch ? parseInt(xMatch[1]) : 0;
+    if (x < 3000) frontHTML += path; else backHTML += path;
+  });
+  frontG.innerHTML = frontHTML;
+  backG.innerHTML  = backHTML;
+}
+
+async function slaWorkoutOp() {
+  const naam = document.getElementById('nieuw-naam')?.value.trim();
+  if (!naam) { showToast('Geef de workout een naam'); return; }
+  if (!nieuweWorkoutOefeningen.length) { showToast('Voeg minstens één oefening toe'); return; }
+  try {
+    const rijen = nieuweWorkoutOefeningen.map((oef, i) => ({
+      schema_naam: naam, dag_naam: naam, volgorde: i+1,
+      oefening: oef.naam,
+      spiergroep_hoofd: oef.db?.spiergroep_hoofd || '',
+      equipment_type:   oef.db?.equipment_type   || '',
+      sets_doel: oef.sets, rep_min: oef.repMin, rep_max: oef.repMax,
+      rust_sec: oef.rust,
+      gewichtssprong_kg: oef.db?.gewichtssprong_compound || 2.5,
+      notitie: ''
+    }));
+    await apiPost({ action: 'saveSchema', data: { rijen } });
+    showToast('✅ ' + naam + ' opgeslagen!');
+    showSubview('wv-workouts');
+    loadWorkoutLijst();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+function loadWorkoutScherm() {
+  showSubview('wv-workouts');
+  loadWorkoutLijst();
+}
+
+function showSubTab(tab) {
+  const wBtn = document.getElementById('subtab-workouts');
+  const lBtn = document.getElementById('subtab-logboek');
+  if (wBtn) { wBtn.style.background = tab==='workouts'?'var(--accent)':'transparent'; wBtn.style.color = tab==='workouts'?'#fff':'var(--text2)'; }
+  if (lBtn) { lBtn.style.background = tab==='logboek'?'var(--accent)':'transparent'; lBtn.style.color = tab==='logboek'?'#fff':'var(--text2)'; }
+  if (tab==='workouts') { showSubview('wv-workouts'); loadWorkoutLijst(); }
+  if (tab==='logboek')  { showSubview('wv-logboek');  loadLogboekLijst(); }
+}
+
+async function loadWorkoutLijst() {
+  const el = document.getElementById('workout-lijst');
+  if (!el) return;
+  try {
+    const schemas = await apiGet({ action:'getAlleSchemas' });
+    if (!schemas?.length) { el.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px">💪</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Nog geen workouts</div><div style="font-size:13px">Tik op + Nieuw om je eerste workout aan te maken</div></div>'; return; }
+    el.innerHTML = schemas.map(s => {
+      const naam = s.schema_naam || s;
+      const dagen = s.dagen ? s.dagen.join(', ') : naam;
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600">${naam}</div><div style="font-size:12px;color:var(--text2);margin-top:2px">${dagen}</div></div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:16px 0;text-align:center">Laden mislukt</div>'; }
+}
+
+async function loadLogboekLijst() {
+  const el = document.getElementById('logboek-lijst');
+  if (!el) return;
+  try {
+    const schemas = await apiGet({ action:'getAlleSchemas' });
+    if (!schemas?.length) { el.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:16px 0">Geen workouts — maak er eerst een aan</div>'; return; }
+    el.innerHTML = schemas.map(s => {
+      const naam = s.schema_naam || s;
+      const dagen = s.dagen || [naam];
+      return dagen.map(dag => `
+        <div onclick="startGemaakteWorkout('${naam.replace(/'/g,"\\'")}','${dag.replace(/'/g,"\\'")}')"
+          style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+          <div><div style="font-size:15px;font-weight:600">${dag}</div><div style="font-size:12px;color:var(--text2);margin-top:2px">${naam}</div></div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>`).join('');
+    }).join('');
+  } catch(e) { el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:16px 0;text-align:center">Laden mislukt</div>'; }
+}
+
+async function startGemaakteWorkout(schemaNaam, dag) {
+  workoutActief=true; workoutStartTijd=new Date(); workoutOefeningen=[];
+  workoutNaam=dag; huidigSchema={schema_naam:schemaNaam}; huidigeDag=dag;
+  showSubview('wv-actief');
+  document.getElementById('actief-naam').textContent = dag;
+  startTimer();
+  try {
+    const sOef = await apiGet({ action:'getSchema', schema_naam:dag });
+    for (const so of sOef) {
+      const db = alleOefeningen.find(o => o.oefening_naam?.toLowerCase()===so.oefening?.toLowerCase())||{};
+      const oef = buildOefeningState(db.oefening_naam||so.oefening, db, parseInt(so.sets_doel)||3, parseInt(so.rep_min)||8, parseInt(so.rep_max)||12, parseInt(so.rust_sec)||120);
+      try { oef.advies = await apiGet({action:'getProgressieAdvies',oefening:oef.naam}); } catch(e){}
+      workoutOefeningen.push(oef);
+    }
+  } catch(e) { showToast('Schema laden mislukt'); }
+  renderOefeningen();
+}
+
+function startLegeWorkout() {
+  workoutActief=true; workoutStartTijd=new Date(); workoutOefeningen=[];
+  workoutNaam='Vrije workout'; huidigSchema=null; huidigeDag=null;
+  showSubview('wv-actief');
+  document.getElementById('actief-naam').textContent='Vrije workout';
+  startTimer(); renderOefeningen();
+}
+
+function openOefInfo(naam) {
+  const db = alleOefeningen.find(o => o.oefening_naam===naam)||{oefening_naam:naam};
+  document.getElementById('oef-info-naam').textContent = naam;
+  const setsPerGroep = {};
+  if (db.spiergroep_hoofd) setsPerGroep[db.spiergroep_hoofd] = 6;
+  const sec = db.spiergroep_sec||'';
+  if (sec) sec.split(',').forEach(s=>{const g=s.trim().toLowerCase();if(g)setsPerGroep[g]=3;});
+  renderDummyNaarElement('info-dummy-front-g','info-dummy-back-g',setsPerGroep);
+  const velden=[['Spiergroep',db.spiergroep_hoofd],['Subcategorie',db.spiergroep_sub],['Secundair',db.spiergroep_sec],['Equipment',db.equipment_type],['Equipment sub',db.equipment_sub],['Type',db.type],['MET',db.met_waarde],['Notitie',db.notitie]];
+  document.getElementById('oef-info-details').innerHTML = velden.filter(([,v])=>v&&v!=='').map(([k,v])=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;justify-content:space-between;gap:12px"><span style="font-size:13px;color:var(--text2)">${k}</span><span style="font-size:13px;font-weight:600;text-align:right">${v}</span></div>`).join('');
+  document.getElementById('oef-info-modal').style.display='flex';
+}
+
+function sluitOefInfoModal() {
+  document.getElementById('oef-info-modal').style.display='none';
+}
+
+
+function setApiUrl(url) {
+  url = url.trim();
+  if (!url) return;
+  API = url;
+  try { localStorage.setItem("gl_api_url", url); } catch(e) {}
+  document.getElementById("inst-api-status").textContent = "✓ URL opgeslagen";
+  document.getElementById("inst-api-status").style.color = "var(--green)";
+  // Test de verbinding
+  testVerbinding();
+}
+
+async function testVerbinding() {
+  const statusEl = document.getElementById("inst-api-status");
+  statusEl.textContent = "Verbinding testen...";
+  statusEl.style.color = "var(--text2)";
+  try {
+    const data = await apiGet({ action: "getDashboard", datum: toYMD(new Date()) });
+    statusEl.textContent = "✓ Verbinding werkt!";
+    statusEl.style.color = "var(--green)";
+    showToast("✅ Verbinding met Sheets werkt!");
+  } catch(e) {
+    statusEl.textContent = "⚠ Verbinding mislukt: " + e.message;
+    statusEl.style.color = "var(--amber)";
+    showToast("❌ Verbinding mislukt — check de URL");
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════
+async function apiGet(params) {
+  const res  = await fetch(API + "?" + new URLSearchParams(params));
+  const json = await res.json();
+  if (json.status !== "success") throw new Error(json.message || "API fout");
+  return json.data;
+}
+async function apiPost(payload) {
+  const res  = await fetch(API, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) });
+  const json = await res.json();
+  if (json.status !== "success") throw new Error(json.message || "API fout");
+  return json.data;
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATIE
+// ═══════════════════════════════════════════════════════
+function goTab(tab) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("screen-" + tab).classList.add("active");
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add("active");
+  document.getElementById("screens").scrollTop = 0;
+  if (tab === "workout") { if (workoutActief) { showSubview('wv-actief'); } else { loadWorkoutScherm(); } }
+  if (tab === "maaltijden") { loadMaaltijden(); }
+  if (tab === "gewicht")    { loadGewicht(); }
+  if (tab === "voortgang")  { loadVoortgang(); }
+  if (tab === "instellingen") { loadInstellingen(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+// ═══════════════════════════════════════════════════════
+// DATUM UTILS
+// ═══════════════════════════════════════════════════════
+function toYMD(d)   { return d.toISOString().split("T")[0]; }
+function formatDate(d) { return d.toLocaleDateString("nl-NL", { weekday:"long", day:"numeric", month:"long" }); }
+function weekStart(d) {
+  const diff = d.getDay() === 0 ? -6 : 1 - d.getDay();
+  const m = new Date(d); m.setDate(d.getDate() + diff); return toYMD(m);
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+function updateRing(kcal, doel) {
+  const pct = Math.min(kcal / doel, 1);
+  const offset = 226 - pct * 226;
+  const fill = document.getElementById("ring-fill");
+  fill.style.strokeDashoffset = offset;
+  fill.style.stroke = pct >= 1 ? "#EF4444" : pct >= .85 ? "#F59E0B" : "#3B82F6";
+  document.getElementById("ring-kcal").textContent = Math.round(kcal);
+}
+function updateMacro(id, barId, val, doel) {
+  document.getElementById(id).textContent = Math.round(val) + " g";
+  document.getElementById(barId).style.width = Math.min(val/doel*100,100) + "%";
+}
+
+async function loadDashboard() {
+  const today = new Date();
+  document.getElementById("dash-date").textContent = formatDate(today);
+  try {
+    const data = await apiGet({ action:"getDashboard", datum:toYMD(today) });
+    if (data.streak > 0) {
+      document.getElementById("streak-count").textContent = data.streak;
+      document.getElementById("streak-display").style.display = "flex";
+    }
+    if (data.laatste_gewicht) {
+      const kg = parseFloat(data.laatste_gewicht.gewicht_kg);
+      document.getElementById("dash-gewicht").innerHTML = `<span class="weight-big">${kg.toFixed(1)}</span><span class="weight-unit">kg</span>`;
+    }
+    updateRing(data.vandaag_kcal || 0, DOELEN.kcal);
+    updateMacro("macro-eiwit","bar-eiwit",0,DOELEN.eiwit);
+    updateMacro("macro-koolhyd","bar-koolhyd",0,DOELEN.koolhyd);
+    updateMacro("macro-vet","bar-vet",0,DOELEN.vet);
+    if (data.laatste_workouts?.length > 0) loadTodaySchema(data.laatste_workouts);
+    else { document.getElementById("today-name").textContent = "Vrije workout"; document.getElementById("today-oef").textContent = "Geen schema actief"; }
+    const wb = weekStart(today);
+    const dw = (data.laatste_workouts||[]).filter(w => w.datum >= wb);
+    document.getElementById("dash-week-count").textContent = dw.length;
+    const wv = dw.reduce((s,w) => s + (parseFloat(w.totaal_volume_kg)||0), 0);
+    if (wv > 0) document.getElementById("dash-week-vol").innerHTML = `<span class="delta-up">${(wv/1000).toFixed(1)}t volume</span>`;
+    if (data.recente_prs?.length > 0) {
+      document.getElementById("pr-section").style.display = "block";
+      document.getElementById("pr-list").innerHTML = data.recente_prs.slice(0,6).map(pr =>
+        `<div class="pr-chip"><span class="pr-badge">PR</span><span>${pr.oefening} — ${pr.kg}kg×${pr.reps}</span></div>`
+      ).join("");
+    }
+    renderHistory(data.laatste_workouts || []);
+  } catch(err) {
+    console.error(err);
+    document.getElementById("today-name").textContent = "Verbinding mislukt";
+    document.getElementById("today-oef").textContent = "Check je internet";
+    document.getElementById("history-card").innerHTML = `<div style="text-align:center;color:var(--text2);font-size:13px;padding:12px 0">Kan data niet laden.</div>`;
+    showToast("Verbinding mislukt");
+  }
+}
+
+async function loadTodaySchema(workouts) {
+  try {
+    const schemas = await apiGet({ action:"getAlleSchemas" });
+    if (!schemas?.length) { document.getElementById("today-name").textContent = "Vrije workout"; return; }
+    const s = schemas[0]; const dagen = s.dagen || [];
+    const laasteDag = workouts[0]?.workout_naam;
+    let volgendeDag = dagen[0];
+    if (laasteDag && dagen.includes(laasteDag)) volgendeDag = dagen[(dagen.indexOf(laasteDag)+1) % dagen.length];
+    const oef = await apiGet({ action:"getSchema", schema_naam:volgendeDag });
+    const sets = oef.reduce((s,o) => s + (parseInt(o.sets_doel)||0), 0);
+    document.getElementById("today-name").textContent = volgendeDag;
+    document.getElementById("today-oef").textContent  = `${oef.length} oefeningen`;
+    document.getElementById("today-sets").textContent  = `· ${sets} sets`;
+  } catch(e) { document.getElementById("today-name").textContent = "Vrije workout"; }
+}
+
+function renderHistory(workouts) {
+  const card = document.getElementById("history-card");
+  if (!workouts?.length) { card.innerHTML = `<div style="text-align:center;color:var(--text2);font-size:13px;padding:12px 0">Nog geen workouts. Start je eerste! 💪</div>`; return; }
+  card.innerHTML = workouts.slice(0,4).map(w => {
+    const d = new Date(w.datum+"T12:00:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"});
+    const v = w.totaal_volume_kg ? (parseFloat(w.totaal_volume_kg)/1000).toFixed(1)+"t" : "—";
+    return `<div class="history-item">
+      <div class="history-icon"><svg viewBox="0 0 24 24"><path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M4 4l2 2M18 4l2 2M4 20l2-2M18 20l2-2"/></svg></div>
+      <div class="history-info"><div class="history-name">${w.workout_naam||"Workout"}</div><div class="history-meta">${d} · ${w.totaal_sets||"—"} sets · gevoel ${w.gevoel||"—"}/5</div></div>
+      <div class="history-vol">${v}</div>
+    </div>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════
+// WORKOUT STATE
+// ═══════════════════════════════════════════════════════
+let nieuweWorkoutOefeningen = [];
+let workoutActief    = false;
+let workoutNaam      = "";
+let workoutStartTijd = null;
+let timerInterval    = null;
+let alleOefeningen   = [];   // oefening database cache
+let huidigSchema     = null; // geselecteerd schema object
+let huidigeDag       = null; // geselecteerde dag
+let workoutOefeningen = [];  // [{ db_oef, sets:[{kg,reps,done}], advies }]
+let gekozenGevoel    = 3;
+let gekozenMet       = 3.5;
+let gekozenInt       = "normaal";
+
+// ═══════════════════════════════════════════════════════
+// WORKOUT KIEZER
+// ═══════════════════════════════════════════════════════
+async function loadWorkoutKiezer() {
+  showSubview("wv-kies");
+  const grid = document.getElementById("schema-grid");
+  if(grid) grid.innerHTML = `<div class="schema-btn selected" onclick="selectSchema(null,null)"><div class="schema-btn-name">Vrije workout</div><div class="schema-btn-sub">Zelf kiezen</div></div>`;
+
+  // Laad ook oefening database alvast
+  if (!alleOefeningen.length) {
+    try { alleOefeningen = await apiGet({ action:"getOefeningDatabase" }); } catch(e){}
+  }
+
+  try {
+    const schemas = await apiGet({ action:"getAlleSchemas" });
+    if(grid) schemas.forEach(s => {
+      const btn = document.createElement("div");
+      btn.className = "schema-btn";
+      btn.innerHTML = `<div class="schema-btn-name">${s.schema_naam}</div><div class="schema-btn-sub">${s.dagen.join(" · ")}</div>`;
+      btn.onclick = () => selectSchema(s, btn);
+      grid.appendChild(btn);
+    });
+  } catch(e) { showToast("Schema's laden mislukt"); }
+}
+
+function selectSchema(schema, btn) {
+  document.querySelectorAll(".schema-btn").forEach(b => b.classList.remove("selected"));
+  if (btn) btn.classList.add("selected");
+  else if (document.querySelector(".schema-btn")) document.querySelector(".schema-btn").classList.add("selected");
+  huidigSchema = schema;
+  huidigeDag   = null;
+
+  const dagSec = document.getElementById("dag-sectie");
+  const dagRow = document.getElementById("dag-row");
+  if (schema && schema.dagen?.length > 0) {
+    if(dagSec) dagSec.style.display = "block";
+    if(dagRow) {
+      dagRow.innerHTML = schema.dagen.map(d =>
+        `<div class="dag-chip" onclick="selectDag(this,'${d}')">${d}</div>`
+      ).join("");
+      // Selecteer eerste dag automatisch
+      selectDag(dagRow.firstChild, schema.dagen[0]);
+    }
+  } else {
+    if(dagSec) dagSec.style.display = "none";
+  }
+}
+
+function selectDag(el, dag) {
+  document.querySelectorAll(".dag-chip").forEach(c => c.classList.remove("selected"));
+  el.classList.add("selected");
+  huidigeDag = dag;
+}
+
+async function startWorkout() {
+  workoutActief    = true;
+  workoutStartTijd = new Date();
+  workoutOefeningen = [];
+
+  if (huidigSchema && huidigeDag) {
+    workoutNaam = huidigeDag;
+    showToast("Schema laden...");
+    try {
+      const sOef = await apiGet({ action:"getSchema", schema_naam:huidigeDag });
+      for (const so of sOef) {
+        const db = alleOefeningen.find(o => o.oefening_naam?.toLowerCase() === so.oefening?.toLowerCase()) || {};
+        const oef = buildOefeningState(db.oefening_naam || so.oefening, db, parseInt(so.sets_doel)||3, parseInt(so.rep_min)||8, parseInt(so.rep_max)||12, parseInt(so.rust_sec)||120);
+        // Haal progressie advies op
+        try { oef.advies = await apiGet({ action:"getProgressieAdvies", oefening: oef.naam }); } catch(e){}
+        workoutOefeningen.push(oef);
+      }
+    } catch(e) { showToast("Schema laden mislukt, vrije workout gestart"); workoutNaam = "Vrije workout"; }
+  } else {
+    workoutNaam = "Vrije workout";
+  }
+
+  showSubview("wv-actief");
+  document.getElementById("actief-naam").textContent = workoutNaam;
+  startTimer();
+  renderOefeningen();
+  resetDummy();
+  setTimeout(triggerDummyUpdate, 300);
+}
+
+function buildOefeningState(naam, db, sets, repMin, repMax, rust) {
+  const setsArr = [];
+  for (let i = 0; i < sets; i++) setsArr.push({ kg: "", reps: repMin, done: false });
+  return { naam, db, sets: setsArr, repMin, repMax, rust, advies: null };
+}
+
+// ═══════════════════════════════════════════════════════
+// OEFENINGEN RENDEREN
+// ═══════════════════════════════════════════════════════
+function renderOefeningen() {
+  const lijst = document.getElementById("oef-lijst");
+  if(lijst) lijst.innerHTML = workoutOefeningen.map((oef, oi) => renderOefeningHTML(oef, oi)).join("");
+}
+
+function renderOefeningHTML(oef, oi) {
+  // Advies banner
+  let bannerHTML = "";
+  if (oef.advies && oef.advies.actie !== "LOGGEN") {
+    const cls = oef.advies.actie === "VERHOOG_GEWICHT" ? "verhoog" : oef.advies.actie === "DELOAD" ? "deload" : "reps";
+    const ico = oef.advies.actie === "VERHOOG_GEWICHT" ? "⬆️" : oef.advies.actie === "DELOAD" ? "⚠️" : "🎯";
+    bannerHTML = `<div class="advies-banner ${cls}"><span class="advies-icon">${ico}</span><span>${oef.advies.advies}</span></div>`;
+  }
+
+  const setsHTML = oef.sets.map((set, si) => `
+    <div class="set-row${set.done?" done":""}" id="set-${oi}-${si}">
+      <div class="set-num">${si+1}</div>
+      <input class="num-input" type="number" inputmode="decimal" min="0" step="0.5"
+        value="${set.kg}" placeholder="kg"
+        onchange="updateSet(${oi},${si},'kg',this.value)">
+      <input class="num-input" type="number" inputmode="numeric" min="1" step="1"
+        value="${set.reps}" placeholder="reps"
+        onchange="updateSet(${oi},${si},'reps',this.value)">
+      <div style="font-size:11px;color:var(--text2);text-align:center;line-height:1.3">
+        doel<br><strong style="color:var(--text)">${oef.repMin}–${oef.repMax}</strong>
+      </div>
+      <button class="check-btn${set.done?" done":""}" onclick="toggleSet(${oi},${si})">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+    </div>`).join("");
+
+  const tag = oef.db?.equipment_type || "";
+  return `<div class="oef-card" id="oef-${oi}">
+    <div class="oef-header">
+      <div class="oef-name" style="flex:1">${oef.naam}</div>
+      <button onclick="openOefInfo('${oef.naam.replace(/'/g,"\\'")}')" style="width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;margin-right:4px;display:flex;align-items:center;justify-content:center">i</button>
+      ${tag ? `<div class="oef-tag">${tag}</div>` : ""}
+    </div>
+    ${bannerHTML}
+    <div class="set-header"><span>#</span><span>kg</span><span>reps</span><span>doel</span><span>✓</span></div>
+    ${setsHTML}
+    <button class="add-set-btn" onclick="addSet(${oi})">+ Set toevoegen</button>
+  </div>`;
+}
+
+function updateSet(oi, si, field, val) {
+  workoutOefeningen[oi].sets[si][field] = field === "reps" ? parseInt(val)||0 : parseFloat(val)||0;
+}
+
+function toggleSet(oi, si) {
+  const oef = workoutOefeningen[oi];
+  const set = oef.sets[si];
+  set.done = !set.done;
+
+  // Update UI zonder full re-render
+  const row = document.getElementById(`set-${oi}-${si}`);
+  row.classList.toggle("done", set.done);
+  const btn = row.querySelector(".check-btn");
+  btn.classList.toggle("done", set.done);
+
+  // Start rusttimer als set gedaan
+  if (set.done) startRest(oef.rust || 90);
+
+  // PR check: vergelijk met vorige e1rm
+  checkPR(oef, si);
+  // Update muscle dummy
+  triggerDummyUpdate();
+}
+
+function addSet(oi) {
+  const oef = workoutOefeningen[oi];
+  const laatste = oef.sets[oef.sets.length - 1];
+  oef.sets.push({ kg: laatste?.kg || "", reps: laatste?.reps || oef.repMin, done: false });
+  // Alleen nieuwe set renderen
+  const lijst = document.getElementById("oef-lijst");
+  const card  = document.getElementById(`oef-${oi}`);
+  const si    = oef.sets.length - 1;
+  const set   = oef.sets[si];
+  const newRow = document.createElement("div");
+  newRow.outerHTML; // dummy
+  // Re-render die kaart
+  card.outerHTML = renderOefeningHTML(oef, oi);
+  // Re-attach (simpelste manier)
+  if(lijst) lijst.innerHTML = workoutOefeningen.map((o,i) => renderOefeningHTML(o,i)).join("");
+}
+
+function checkPR(oef, si) {
+  const set = oef.sets[si];
+  if (!set.kg || !set.reps) return;
+  // Epley e1rm
+  const e1rm = set.kg * (1 + set.reps/30);
+  if (!oef.best_e1rm || e1rm > oef.best_e1rm) {
+    oef.best_e1rm = e1rm;
+    set.pr = 1;
+  } else { set.pr = 0; }
+}
+
+// ═══════════════════════════════════════════════════════
+// RUSTTIMER
+// ═══════════════════════════════════════════════════════
+let restInterval = null;
+let restTotal    = 90;
+let restLeft     = 90;
+const CIRC_REST  = 427; // 2π × 68
+
+function startRest(secs) {
+  clearInterval(restInterval);
+  restTotal = secs; restLeft = secs;
+  const overlay = document.getElementById("rest-overlay");
+  const ring    = document.getElementById("rest-ring");
+  const display = document.getElementById("rest-secs");
+  overlay.style.display = "flex";
+  display.textContent   = restLeft;
+  ring.style.strokeDashoffset = 0;
+
+  restInterval = setInterval(() => {
+    restLeft--;
+    display.textContent = restLeft;
+    const pct = 1 - restLeft / restTotal;
+    ring.style.strokeDashoffset = pct * CIRC_REST;
+    if (restLeft <= 0) {
+      clearInterval(restInterval);
+      overlay.style.display = "none";
+      showToast("Rust voorbij — volgende set!");
+      // Licht trillen als beschikbaar
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }
+  }, 1000);
+}
+
+function skipRest() {
+  clearInterval(restInterval);
+  document.getElementById("rest-overlay").style.display = "none";
+}
+
+// ═══════════════════════════════════════════════════════
+// WORKOUT TIMER
+// ═══════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const secs = Math.floor((new Date() - workoutStartTijd) / 1000);
+    const m = String(Math.floor(secs/60)).padStart(2,"0");
+    const s = String(secs%60).padStart(2,"0");
+    if(document.getElementById("actief-timer")) document.getElementById("actief-timer").textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+// ═══════════════════════════════════════════════════════
+// OEFENING ZOEKEN
+// ═══════════════════════════════════════════════════════
+let huidigFilter = "";
+
+function openSearchModal(context) {
+  window._searchContext = context || 'actief';
+  document.getElementById("search-modal").style.display = "flex";
+  document.getElementById("search-input").value = "";
+  huidigFilter = "";
+  document.querySelectorAll(".filter-chip").forEach(c => c.classList.toggle("active", c.dataset.filter === ""));
+
+  if (!alleOefeningen.length) {
+    // Nog niet geladen — haal op en toon dan pas resultaten
+    document.getElementById("search-results").innerHTML =
+      '<div style="text-align:center;color:var(--text2);padding:32px;font-size:14px">Oefeningen laden...</div>';
+    apiGet({ action: "getOefeningDatabase" }).then(db => {
+      alleOefeningen = db || [];
+      renderSearchResults("");
+    }).catch(() => {
+      document.getElementById("search-results").innerHTML =
+        '<div style="text-align:center;color:var(--red);padding:32px;font-size:14px">Laden mislukt — check verbinding</div>';
+    });
+  } else {
+    renderSearchResults("");
+  }
+  setTimeout(() => { if(document.getElementById("search-input")) document.getElementById("search-input").focus(); }, 100);
+}
+
+function closeSearchModal() {
+  document.getElementById("search-modal").style.display = "none";
+}
+
+function setFilter(el, filter) {
+  huidigFilter = filter;
+  document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  filterSearch();
+}
+
+function filterSearch() {
+  const input = document.getElementById("search-input");
+  const q = input ? input.value.toLowerCase() : "";
+  renderSearchResults(q);
+}
+
+function renderSearchResults(q) {
+  let results = alleOefeningen;
+  if (huidigFilter) results = results.filter(o => o.spiergroep_hoofd === huidigFilter);
+  if (q)           results = results.filter(o => o.oefening_naam?.toLowerCase().includes(q));
+
+  const el = document.getElementById("search-results");
+  if (!el) return;
+  if (!results.length) { el.innerHTML = `<div style="text-align:center;color:var(--text2);padding:32px;font-size:14px">Geen oefeningen gevonden</div>`; return; }
+
+  el.innerHTML = results.slice(0,40).map(o => `
+    <div class="search-item" onclick="addOefening('${o.oefening_naam?.replace(/'/g,"\\'")}')">
+      <div>
+        <div class="search-item-name">${o.oefening_naam}</div>
+        <div class="search-item-sub">${o.spiergroep_hoofd||""} ${o.spiergroep_sub ? "· "+o.spiergroep_sub : ""}</div>
+      </div>
+      <div class="search-item-tag">${o.equipment_type||""}</div>
+    </div>`).join("");
+}
+
+function addOefening(naam) {
+  const db = alleOefeningen.find(o => o.oefening_naam === naam) || {};
+  const rust = parseInt(db.type === "compound" ? 120 : 60);
+  const ctx = window._searchContext || 'actief';
+  closeSearchModal();
+
+  // Nieuw-workout context: voeg toe aan nieuwWorkout editor
+  if (ctx === 'nieuw') {
+    if (typeof nieuweWorkoutOefeningen !== 'undefined') {
+      nieuweWorkoutOefeningen.push({ naam, db, sets: 3, repMin: 8, repMax: 12, rust });
+      if (typeof renderNieuweOefeningen === 'function') renderNieuweOefeningen();
+      if (typeof renderNieuweWerkout_Dummy === 'function') renderNieuweWerkout_Dummy();
+    }
+    return;
+  }
+
+  // Actief-workout context
+  const oef = buildOefeningState(naam, db, 3, 8, 12, rust);
+  // Haal advies op op de achtergrond
+  apiGet({ action:"getProgressieAdvies", oefening:naam })
+    .then(advies => { oef.advies = advies; renderOefeningen(); })
+    .catch(() => {});
+  workoutOefeningen.push(oef);
+  renderOefeningen();
+  triggerDummyUpdate();
+  // Scroll naar nieuwe oefening
+  setTimeout(() => {
+    const el = document.getElementById(`oef-${workoutOefeningen.length-1}`);
+    el?.scrollIntoView({ behavior:"smooth", block:"start" });
+  }, 100);
+}
+
+// ═══════════════════════════════════════════════════════
+// WORKOUT AFRONDEN
+// ═══════════════════════════════════════════════════════
+function openFinishModal() {
+  clearInterval(timerInterval);
+  const duur = Math.round((new Date() - workoutStartTijd) / 60000);
+  const sets  = workoutOefeningen.reduce((s,o) => s + o.sets.filter(s=>s.done).length, 0);
+  const vol   = workoutOefeningen.reduce((s,o) =>
+    s + o.sets.filter(s=>s.done && s.kg && s.reps).reduce((a,s) => a + s.kg*s.reps, 0), 0);
+
+  if(document.getElementById("fin-duur")) document.getElementById("fin-duur").textContent = duur;
+  if(document.getElementById("fin-sets")) document.getElementById("fin-sets").textContent = sets;
+  if(document.getElementById("fin-vol")) document.getElementById("fin-vol").textContent  = (vol/1000).toFixed(2);
+  if(document.getElementById("finish-sub")) document.getElementById("finish-sub").textContent = `${workoutNaam} · ${duur} min`;
+  document.getElementById("finish-modal").style.display = "flex";
+}
+
+function closeFinishModal() {
+  document.getElementById("finish-modal").style.display = "none";
+  startTimer();
+}
+
+function confirmStopWorkout() {
+  if (!confirm("Workout stoppen zonder opslaan?")) return;
+  stopWorkout();
+}
+
+function stopWorkout() {
+  clearInterval(timerInterval);
+  clearInterval(restInterval);
+  workoutActief = false;
+  workoutOefeningen = [];
+  document.getElementById("finish-modal").style.display = "none";
+  document.getElementById("rest-overlay").style.display = "none";
+  showSubview('wv-logboek');
+  loadLogboekLijst();
+  resetDummy();
+}
+
+function selectGevoel(val) {
+  gekozenGevoel = val;
+  document.querySelectorAll(".gevoel-btn").forEach(b => b.classList.toggle("selected", parseInt(b.dataset.val) === val));
+}
+
+function selectInt(el, naam, met) {
+  gekozenInt = naam; gekozenMet = met;
+  document.querySelectorAll(".int-btn").forEach(b => b.classList.remove("selected"));
+  el.classList.add("selected");
+}
+
+async function saveWorkout() {
+  const btn = document.querySelector("#finish-modal .btn-primary");
+  if(btn) { btn.disabled = true; btn.textContent = "Opslaan..."; }
+
+  try {
+    const today   = new Date();
+    const datum   = toYMD(today);
+    const duur    = Math.round((today - workoutStartTijd) / 60000);
+    const kcal    = Math.round((gekozenMet * 3.5 * GEBRUIKER_KG * duur) / 200);
+    const workoutId = datum + "_" + workoutNaam.replace(/\s/g,"");
+
+    // Bouw workout_log rijen
+    const logRijen = [];
+    workoutOefeningen.forEach(oef => {
+      oef.sets.forEach((set, si) => {
+        if (!set.done || !set.kg || !set.reps) return;
+        const e1rm = Math.round(((set.kg*(1+set.reps/30)) + (set.kg*36/(37-Math.min(set.reps,36))))/2 * 10) / 10;
+        logRijen.push({
+          datum, workout_id: workoutId, workout_naam: workoutNaam,
+          oefening: oef.naam,
+          spiergroep_hoofd: oef.db?.spiergroep_hoofd || "",
+          spiergroep_sub:   oef.db?.spiergroep_sub   || "",
+          equipment_type:   oef.db?.equipment_type   || "",
+          set_nr: si+1, kg: set.kg, reps: set.reps, rpe: "", rusttijd_sec: oef.rust,
+          pr: set.pr || 0, e1rm, notitie_set: ""
+        });
+      });
+    });
+
+    const totaalSets = logRijen.length;
+    const totaalVol  = logRijen.reduce((s,r) => s + (r.kg * r.reps), 0);
+
+    const metaRij = {
+      datum, workout_id: workoutId, workout_naam: workoutNaam,
+      schema_naam: huidigSchema?.schema_naam || "",
+      start_tijd:  workoutStartTijd.toTimeString().slice(0,5),
+      eind_tijd:   today.toTimeString().slice(0,5),
+      duur_min: duur, gevoel: gekozenGevoel, intensiteit: gekozenInt,
+      kcal_verbrand: kcal, totaal_volume_kg: totaalVol,
+      totaal_sets: totaalSets,
+      totaal_oefeningen: workoutOefeningen.length,
+      notitie_workout: document.getElementById("finish-notitie") ? document.getElementById("finish-notitie").value : ""
+    };
+
+    await apiPost({ action:"saveWorkout", data:{ workout_meta: metaRij, workout_log: logRijen } });
+
+    showToast("✅ Workout opgeslagen!");
+    document.getElementById("finish-modal").style.display = "none";
+    stopWorkout();
+    // Ververs dashboard
+    loadDashboard();
+    // Pre-fill gewicht input with last known weight on load
+    if(document.getElementById("gew-input")) document.getElementById("gew-input").value = GEBRUIKER_KG.toFixed(1);
+
+  } catch(err) {
+    showToast("❌ Opslaan mislukt: " + err.message);
+    if(btn) { btn.disabled = false; btn.textContent = "Opslaan naar Sheets"; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// SUBVIEWS (binnen workout scherm)
+// ═══════════════════════════════════════════════════════
+function showSubview(id) {
+  document.querySelectorAll(".workout-subview").forEach(v => v.style.display = "none");
+  if(document.getElementById(id)) document.getElementById(id).style.display = "block";
+}
+
+// ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// FASE 4 — MAALTIJDEN
+// ═══════════════════════════════════════════════════════
+let mealMoment   = "ontbijt";
+let vandaagMeals = [];
+let favorieten   = [];
+try { favorieten = JSON.parse(localStorage.getItem("gl_fav") || "[]"); } catch(e) {}
+
+// ── MODAL OPENEN/SLUITEN ──────────────────────────────
+function openMaaltijdModal(prefillNaam) {
+  const modal = document.getElementById("maaltijd-modal");
+  modal.style.display = "flex";
+  document.getElementById("meal-naam").value = prefillNaam || "";
+  document.getElementById("meal-kcal").value = "";
+  document.getElementById("meal-eiwit-in").value = "";
+  document.getElementById("meal-koolhyd-in").value = "";
+  document.getElementById("meal-vet-in").value = "";
+  document.getElementById("meal-ingredienten").value = "";
+  document.getElementById("meal-favoriet").checked = false;
+
+  // Als naam al ingevuld (bv vanuit favoriet): zoek meteen op
+  if (prefillNaam) zoekRecenteMaaltijd(prefillNaam);
+  else renderRecenteModal();
+}
+
+function closeMaaltijdModal() {
+  document.getElementById("maaltijd-modal").style.display = "none";
+}
+
+// ── RECENTE MAALTIJDEN IN MODAL ───────────────────────
+function renderRecenteModal() {
+  const el = document.getElementById("modal-recente-lijst");
+  const wrap = document.getElementById("modal-recente-wrap");
+  if (!vandaagMeals.length && !favorieten.length) {
+    wrap.style.display = "none"; return;
+  }
+  wrap.style.display = "block";
+  // Unieke namen: favorieten eerste, dan vandaag
+  const gezien = new Set();
+  const opties = [...favorieten, ...vandaagMeals].filter(m => {
+    if (gezien.has(m.naam)) return false;
+    gezien.add(m.naam); return true;
+  }).slice(0, 5);
+
+  el.innerHTML = opties.map(m => `
+    <div onclick="vulMaaltijdIn('${m.naam.replace(/'/g,"\\'")}',${m.kcal||0},${m.eiwit_g||0},${m.koolhyd_g||0},${m.vet_g||0})"
+      style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface2);border-radius:var(--radius);cursor:pointer">
+      <div>
+        <div style="font-size:14px;font-weight:500">${m.naam}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${m.kcal||0} kcal · ${m.eiwit_g||0}g eiwit</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`).join("");
+}
+
+function zoekRecenteMaaltijd(naam) {
+  if (!naam || naam.length < 2) { renderRecenteModal(); return; }
+  const q = naam.toLowerCase();
+  const gezien = new Set();
+  const matches = [...favorieten, ...vandaagMeals].filter(m => {
+    if (gezien.has(m.naam)) return false;
+    gezien.add(m.naam);
+    return m.naam.toLowerCase().includes(q);
+  }).slice(0, 3);
+
+  const el = document.getElementById("modal-recente-lijst");
+  const wrap = document.getElementById("modal-recente-wrap");
+  if (!matches.length) { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  el.innerHTML = matches.map(m => `
+    <div onclick="vulMaaltijdIn('${m.naam.replace(/'/g,"\\'")}',${m.kcal||0},${m.eiwit_g||0},${m.koolhyd_g||0},${m.vet_g||0})"
+      style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:var(--radius);cursor:pointer">
+      <div>
+        <div style="font-size:14px;font-weight:500">${m.naam}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${m.kcal||0} kcal · ${m.eiwit_g||0}g eiwit</div>
+      </div>
+      <span style="font-size:11px;color:var(--accent);font-weight:600">Kies →</span>
+    </div>`).join("");
+}
+
+function vulMaaltijdIn(naam, kcal, eiwit, koolhyd, vet) {
+  document.getElementById("meal-naam").value = naam;
+  document.getElementById("meal-kcal").value = kcal || "";
+  document.getElementById("meal-eiwit-in").value = eiwit || "";
+  document.getElementById("meal-koolhyd-in").value = koolhyd || "";
+  document.getElementById("meal-vet-in").value = vet || "";
+  document.getElementById("modal-recente-wrap").style.display = "none";
+}
+
+// ── MAALTIJD OPSLAAN ──────────────────────────────────
+async function saveMaaltijd() {
+  const naam    = document.getElementById("meal-naam").value.trim();
+  const kcal    = parseFloat(document.getElementById("meal-kcal").value) || 0;
+  const eiwit   = parseFloat(document.getElementById("meal-eiwit-in").value) || 0;
+  const koolhyd = parseFloat(document.getElementById("meal-koolhyd-in").value) || 0;
+  const vet     = parseFloat(document.getElementById("meal-vet-in").value) || 0;
+  const fav     = document.getElementById("meal-favoriet").checked;
+
+  if (!naam) { showToast("Vul een naam in"); return; }
+  if (!kcal)  { showToast("Vul kcal in"); return; }
+
+  const data = {
+    datum: toYMD(new Date()), maaltijd_moment: mealMoment,
+    naam, kcal, eiwit_g: eiwit, koolhyd_g: koolhyd, vet_g: vet,
+    vezels_g: "", favoriet: fav ? 1 : 0, notitie: ""
+  };
+
+  if (fav) {
+    favorieten = favorieten.filter(f => f.naam !== naam);
+    favorieten.unshift({ naam, kcal, eiwit_g: eiwit, koolhyd_g: koolhyd, vet_g: vet });
+    if (favorieten.length > 20) favorieten.pop();
+    try { localStorage.setItem("gl_fav", JSON.stringify(favorieten)); } catch(e) {}
+  }
+
+  try {
+    await apiPost({ action: "saveMaaltijd", data });
+    vandaagMeals.push(data);
+    closeMaaltijdModal();
+    renderTijdlijn();
+    updateMaaltijdMeter();
+    updateSnelleFav();
+    showToast("✅ " + naam + " toegevoegd!");
+  } catch(err) {
+    showToast("❌ " + err.message);
+  }
+}
+
+// ── MAALTIJDEN LADEN ──────────────────────────────────
+async function loadMaaltijden() {
+  document.getElementById("meal-datum-sub").textContent = formatDate(new Date());
+  document.getElementById("meal-kcal-doel").textContent = DOELEN.kcal;
+  document.getElementById("meal-eiwit-doel-val").textContent  = DOELEN.eiwit;
+  document.getElementById("meal-koolhyd-doel-val").textContent = DOELEN.koolhyd;
+  document.getElementById("meal-vet-doel-val").textContent    = DOELEN.vet;
+  vandaagMeals = [];
+  renderTijdlijn();
+  updateMaaltijdMeter();
+  updateSnelleFav();
+}
+
+// ── TIJDLIJN RENDEREN ────────────────────────────────
+function renderTijdlijn() {
+  const el = document.getElementById("meal-tijdlijn");
+  if (!vandaagMeals.length) {
+    el.innerHTML = `<div style="text-align:center;color:var(--text2);font-size:13px;padding:24px 0">
+      <div style="font-size:28px;margin-bottom:8px">🍽️</div>Nog niets gelogd vandaag</div>`;
+    return;
+  }
+
+  // Groepeer op moment voor weergave
+  const volgorde = ["ontbijt","lunch","diner","snacks",""];
+  const labels   = { ontbijt:"🌅 Ontbijt", lunch:"☀️ Lunch", diner:"🌙 Diner", snacks:"🍎 Snacks" };
+  const perMoment = {};
+  vandaagMeals.forEach(m => {
+    const k = m.maaltijd_moment || "";
+    if (!perMoment[k]) perMoment[k] = [];
+    perMoment[k].push(m);
+  });
+
+  el.innerHTML = Object.entries(perMoment).map(([moment, items]) => {
+    const totKcal = items.reduce((s,m) => s + (parseFloat(m.kcal)||0), 0);
+    const label = labels[moment] || moment || "Overig";
+    return `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">${label}</div>
+          <div style="font-size:12px;color:var(--text2)">${Math.round(totKcal)} kcal</div>
+        </div>
+        ${items.map((m, mi) => `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.naam}</div>
+              <div style="font-size:11px;color:var(--text2);margin-top:2px">${m.eiwit_g||0}g eiwit · ${m.koolhyd_g||0}g koolh. · ${m.vet_g||0}g vet</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;margin-left:10px">
+              <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${m.kcal||0}</div>
+              <div style="font-size:10px;color:var(--text2)">kcal</div>
+            </div>
+          </div>`).join("")}
+        <button onclick="openMaaltijdModal();mealMoment='${moment || 'snacks'}'" 
+          style="width:100%;padding:8px;border:1px dashed var(--border);border-radius:var(--radius);background:none;color:var(--text2);font-size:12px;cursor:pointer">
+          + Toevoegen aan ${label.replace(/[^\w\s]/g,'').trim()}
+        </button>
+      </div>`;
+  }).join("") + `
+    <button onclick="openMaaltijdModal()" style="width:100%;padding:12px;background:none;border:1.5px dashed var(--border);border-radius:var(--radius);color:var(--text2);font-size:14px;font-weight:500;cursor:pointer;margin-top:4px">
+      + Nieuwe maaltijd toevoegen
+    </button>`;
+}
+
+// ── MACRO METER UPDATE ────────────────────────────────
+function updateMaaltijdMeter() {
+  const totKcal    = vandaagMeals.reduce((s,m) => s + (parseFloat(m.kcal)||0), 0);
+  const totEiwit   = vandaagMeals.reduce((s,m) => s + (parseFloat(m.eiwit_g)||0), 0);
+  const totKoolhyd = vandaagMeals.reduce((s,m) => s + (parseFloat(m.koolhyd_g)||0), 0);
+  const totVet     = vandaagMeals.reduce((s,m) => s + (parseFloat(m.vet_g)||0), 0);
+
+  const dKcal    = DOELEN.kcal    || 2400;
+  const dEiwit   = DOELEN.eiwit   || 160;
+  const dKoolhyd = DOELEN.koolhyd || 250;
+  const dVet     = DOELEN.vet     || 70;
+
+  // Resterend (negatief = overschreden)
+  const restKcal    = dKcal    - Math.round(totKcal);
+  const restEiwit   = dEiwit   - Math.round(totEiwit);
+  const restKoolhyd = dKoolhyd - Math.round(totKoolhyd);
+  const restVet     = dVet     - Math.round(totVet);
+
+  // Kcal resterend groot display
+  const kcalRestEl = document.getElementById("meal-kcal-rest");
+  if (kcalRestEl) {
+    kcalRestEl.textContent = restKcal > 0 ? restKcal : "0";
+    kcalRestEl.style.color = restKcal < 0 ? "var(--red)" : restKcal < dKcal * 0.1 ? "var(--amber)" : "var(--text)";
+  }
+  const gegEl = document.getElementById("meal-kcal-gegeten");
+  if (gegEl) gegEl.textContent = Math.round(totKcal);
+  const doelEl = document.getElementById("meal-kcal-doel");
+  if (doelEl) doelEl.textContent = dKcal;
+
+  // Kcal hoofdbalk
+  const pctKcal = Math.min(totKcal / dKcal, 1);
+  const barKcal = document.getElementById("meal-bar-kcal-main");
+  if (barKcal) {
+    barKcal.style.width = (pctKcal * 100) + "%";
+    barKcal.style.background = pctKcal >= 1 ? "var(--red)" : pctKcal >= 0.9 ? "var(--amber)" : "var(--accent)";
+  }
+
+  // Macro balken met kleurcodering
+  function updateMacroBalk(id, barId, vanId, totaal, doel, kleur) {
+    const pct = Math.min(totaal / doel, 1.2);
+    const rest = doel - Math.round(totaal);
+    const restEl = document.getElementById(id);
+    if (restEl) {
+      restEl.textContent = (rest > 0 ? rest : "0") + "g";
+      restEl.style.color = rest < 0 ? "var(--red)" : kleur;
+    }
+    const bar = document.getElementById(barId);
+    if (bar) {
+      bar.style.width = Math.min(pct * 100, 100) + "%";
+      bar.style.background = pct >= 1 ? "var(--red)" : pct >= 0.85 ? "var(--amber)" : kleur;
+    }
+    const vanEl = document.getElementById(vanId);
+    if (vanEl) vanEl.textContent = Math.round(totaal);
+  }
+
+  updateMacroBalk("meal-eiwit-rest",   "meal-bar-eiwit",   "meal-eiwit-van",   totEiwit,   dEiwit,   "#3B82F6");
+  updateMacroBalk("meal-koolhyd-rest", "meal-bar-koolhyd", "meal-koolhyd-van", totKoolhyd, dKoolhyd, "#F59E0B");
+  updateMacroBalk("meal-vet-rest",     "meal-bar-vet",     "meal-vet-van",     totVet,     dVet,     "#22C55E");
+
+  // Update doel-labels
+  const eiDoel = document.getElementById("meal-eiwit-doel-val");
+  const khDoel = document.getElementById("meal-koolhyd-doel-val");
+  const vtDoel = document.getElementById("meal-vet-doel-val");
+  if (eiDoel) eiDoel.textContent = dEiwit;
+  if (khDoel) khDoel.textContent = dKoolhyd;
+  if (vtDoel) vtDoel.textContent = dVet;
+
+  // Coach advies
+  const coachEl = document.getElementById("meal-coach");
+  if (coachEl) {
+    let advies = "";
+    const pctEiwit = totEiwit / dEiwit;
+    const pctKcalVal = totKcal / dKcal;
+    if (pctEiwit < 0.5 && totKcal > 100) {
+      advies = "💡 Je ligt achter op eiwitten. Probeer een eiwitrijke snack zoals kwark, eieren of een proteïneshake.";
+    } else if (pctKcalVal > 0.9 && pctEiwit < 0.7) {
+      advies = "⚠️ Je zit bijna aan je calorielimiet maar je eiwitten zijn nog laag. Focus bij je volgende maaltijd op een pure eiwitbron.";
+    } else if (pctKcalVal >= 1) {
+      advies = "🔴 Je hebt je caloriedoel bereikt voor vandaag.";
+    } else if (pctEiwit >= 1 && pctKcalVal < 0.8) {
+      advies = "✅ Eiwitdoel gehaald! Vul aan met koolhydraten en vetten.";
+    }
+    coachEl.textContent = advies;
+    coachEl.style.display = advies ? "block" : "none";
+    if (advies.startsWith("✅")) {
+      coachEl.style.background = "rgba(34,197,94,.08)";
+      coachEl.style.borderColor = "rgba(34,197,94,.2)";
+      coachEl.style.color = "#86efac";
+    } else if (advies.startsWith("🔴")) {
+      coachEl.style.background = "rgba(239,68,68,.08)";
+      coachEl.style.borderColor = "rgba(239,68,68,.2)";
+      coachEl.style.color = "#fca5a5";
+    } else if (advies.startsWith("⚠️")) {
+      coachEl.style.background = "rgba(245,158,11,.08)";
+      coachEl.style.borderColor = "rgba(245,158,11,.2)";
+      coachEl.style.color = "#fcd34d";
+    } else {
+      coachEl.style.background = "rgba(59,130,246,.08)";
+      coachEl.style.borderColor = "rgba(59,130,246,.2)";
+      coachEl.style.color = "#93c5fd";
+    }
+  }
+
+  // Sync dashboard ring
+  updateRing(totKcal, dKcal);
+  updateMacro("macro-eiwit",   "bar-eiwit",   totEiwit,   dEiwit);
+  updateMacro("macro-koolhyd", "bar-koolhyd", totKoolhyd, dKoolhyd);
+  updateMacro("macro-vet",     "bar-vet",     totVet,     dVet);
+}
+
+// ── SNELLE FAVORIETEN CHIPS ───────────────────────────
+function updateSnelleFav() {
+  const wrap = document.getElementById("meal-snelle-fav");
+  const el   = document.getElementById("meal-fav-chips");
+  if (!wrap || !el) return;
+  if (!favorieten.length) { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  el.innerHTML = favorieten.slice(0, 6).map(f =>
+    `<div onclick="snelToevoegen('${f.naam.replace(/'/g,"\\'")}',${f.kcal||0},${f.eiwit_g||0},${f.koolhyd_g||0},${f.vet_g||0})"
+      style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 12px;cursor:pointer;white-space:nowrap">
+      <div style="font-size:12px;font-weight:500">${f.naam}</div>
+      <div style="font-size:10px;color:var(--text2)">${f.kcal} kcal</div>
+    </div>`
+  ).join("");
+}
+
+async function snelToevoegen(naam, kcal, eiwit, koolhyd, vet) {
+  const data = {
+    datum: toYMD(new Date()), maaltijd_moment: "snacks",
+    naam, kcal, eiwit_g: eiwit, koolhyd_g: koolhyd, vet_g: vet,
+    vezels_g: "", favoriet: 1, notitie: ""
+  };
+  try {
+    await apiPost({ action: "saveMaaltijd", data });
+    vandaagMeals.push(data);
+    renderTijdlijn();
+    updateMaaltijdMeter();
+    showToast("✅ " + naam + " toegevoegd!");
+  } catch(e) { showToast("❌ " + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════
+// FASE 4 — GEWICHT
+// ═══════════════════════════════════════════════════════
+let gewMoment = "nuchter";
+let gewData   = [];
+
+function openGewichtModal() {
+  const laatste = gewData.length ? parseFloat(gewData[0].gewicht_kg) : GEBRUIKER_KG;
+  if(document.getElementById("gew-input")) document.getElementById("gew-input").value = laatste.toFixed(1);
+  if(document.getElementById("gew-modal-datum")) document.getElementById("gew-modal-datum").textContent = formatDate(new Date());
+  gewMoment = "nuchter";
+  document.querySelectorAll("[id^='gm-']").forEach(b => b.classList.remove("selected"));
+  if(document.getElementById("gm-nuchter")) document.getElementById("gm-nuchter").classList.add("selected");
+  document.getElementById("gewicht-modal").style.display = "flex";
+}
+function closeGewichtModal() { document.getElementById("gewicht-modal").style.display = "none"; }
+
+function adjustGewicht(delta) {
+  const inp = document.getElementById("gew-input");
+  if(inp) inp.value = Math.max(30, Math.min(300, (parseFloat(inp.value)||GEBRUIKER_KG) + delta)).toFixed(1);
+}
+
+function selectGewMoment(el, mo) {
+  gewMoment = mo;
+  document.querySelectorAll("[id^='gm-']").forEach(b => b.classList.remove("selected"));
+  el.classList.add("selected");
+}
+
+async function saveGewicht() {
+  const inp = document.getElementById("gew-input");
+  const kg = parseFloat(inp?.value);
+  if (!kg || kg < 30 || kg > 300) { showToast("Vul een geldig gewicht in"); return; }
+  const data = { datum:toYMD(new Date()), gewicht_kg:kg, moment:gewMoment, vetpercentage:"", notitie:"" };
+  try {
+    await apiPost({ action:"saveGewicht", data });
+    gewData.unshift(data);
+    closeGewichtModal();
+    renderGewichtStats();
+    tekenGewichtGrafiek();
+    renderGewichtLijst();
+    if(document.getElementById("dash-gewicht")) document.getElementById("dash-gewicht").innerHTML = `<span class="weight-big">${kg.toFixed(1)}</span><span class="weight-unit">kg</span>`;
+    showToast("Gewicht opgeslagen!");
+  } catch(err) { showToast("Fout: " + err.message); }
+}
+
+async function loadGewicht() {
+  if(document.getElementById("gew-sub")) document.getElementById("gew-sub").textContent = formatDate(new Date());
+  try {
+    const dash = await apiGet({ action:"getDashboard", datum:toYMD(new Date()) });
+    if (dash.laatste_gewicht) gewData = [dash.laatste_gewicht];
+  } catch(e) {}
+  renderGewichtStats();
+  tekenGewichtGrafiek();
+  renderGewichtLijst();
+}
+
+function renderGewichtStats() {
+  if (!gewData.length) return;
+  const sorted = [...gewData].sort((a,b)=>new Date(b.datum)-new Date(a.datum));
+  const huidig = parseFloat(sorted[0].gewicht_kg)||0;
+  if(document.getElementById("gew-huidig")) document.getElementById("gew-huidig").textContent = huidig.toFixed(1);
+  if (sorted.length >= 2) {
+    const zeven  = sorted.slice(0,7);
+    const avg    = zeven.reduce((s,r)=>s+(parseFloat(r.gewicht_kg)||0),0)/zeven.length;
+    const oudste = parseFloat(zeven[zeven.length-1].gewicht_kg)||huidig;
+    const diff   = huidig - oudste;
+    if(document.getElementById("gew-avg")) document.getElementById("gew-avg").textContent = avg.toFixed(1);
+    const s = diff>0?"+":"";
+    if(document.getElementById("gew-trend")) document.getElementById("gew-trend").innerHTML = `<span class="${diff>0?"delta-up":diff<0?"delta-down":"delta-flat"}">${s}${diff.toFixed(1)} kg vs 7d</span>`;
+    if(document.getElementById("gew-change")) document.getElementById("gew-change").innerHTML = `<span class="delta-flat">${zeven.length} metingen</span>`;
+  }
+}
+
+function tekenGewichtGrafiek() {
+  const canvas = document.getElementById("gew-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio||1;
+  const w   = canvas.offsetWidth||300;
+  const h   = 120;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const pts = [...gewData].sort((a,b)=>new Date(a.datum)-new Date(b.datum)).slice(-30).map(r=>parseFloat(r.gewicht_kg)).filter(v=>v>0);
+  if (pts.length < 2) {
+    ctx.fillStyle="#4B5563"; ctx.font="13px -apple-system,sans-serif"; ctx.textAlign="center";
+    ctx.fillText("Meer metingen nodig", w/2, h/2); return;
+  }
+  const mn=Math.min(...pts)-1, mx=Math.max(...pts)+1;
+  const pL=8,pR=8,pT=12,pB=4, cw=w-pL-pR, ch=h-pT-pB;
+  const xOf=i=>pL+(i/(pts.length-1))*cw;
+  const yOf=v=>pT+ch-((v-mn)/(mx-mn))*ch;
+  // Grid
+  [0,.5,1].forEach(f=>{
+    const y=pT+f*ch;
+    ctx.strokeStyle="#2E3250"; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pL,y); ctx.lineTo(w-pR,y); ctx.stroke();
+    ctx.fillStyle="#4B5563"; ctx.font="10px -apple-system,sans-serif"; ctx.textAlign="left";
+    ctx.fillText((mx-f*(mx-mn)).toFixed(1), 0, y+3);
+  });
+  // Fill
+  const g=ctx.createLinearGradient(0,pT,0,pT+ch);
+  g.addColorStop(0,"rgba(59,130,246,.3)"); g.addColorStop(1,"rgba(59,130,246,0)");
+  ctx.beginPath(); ctx.moveTo(xOf(0),yOf(pts[0]));
+  pts.forEach((v,i)=>{ if(i>0) ctx.lineTo(xOf(i),yOf(v)); });
+  ctx.lineTo(xOf(pts.length-1),pT+ch); ctx.lineTo(xOf(0),pT+ch); ctx.closePath();
+  ctx.fillStyle=g; ctx.fill();
+  // Line
+  ctx.beginPath(); ctx.strokeStyle="#3B82F6"; ctx.lineWidth=2; ctx.lineJoin="round";
+  pts.forEach((v,i)=>{ i===0?ctx.moveTo(xOf(i),yOf(v)):ctx.lineTo(xOf(i),yOf(v)); });
+  ctx.stroke();
+  // Dot last
+  const lx=xOf(pts.length-1), ly=yOf(pts[pts.length-1]);
+  ctx.beginPath(); ctx.arc(lx,ly,4,0,Math.PI*2); ctx.fillStyle="#3B82F6"; ctx.fill();
+}
+
+function renderGewichtLijst() {
+  const el = document.getElementById("gew-lijst");
+  if(!el) return;
+  const sorted = [...gewData].sort((a,b)=>new Date(b.datum)-new Date(a.datum)).slice(0,10);
+  if (!sorted.length) { el.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:12px 0">Nog geen metingen. Voeg je eerste toe!</div>'; return; }
+  el.innerHTML = sorted.map((r,i) => {
+    const d = new Date(r.datum+"T12:00:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"});
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;${i<sorted.length-1?"border-bottom:1px solid var(--border)":""}">
+      <div><div style="font-size:13px;font-weight:500">${d}</div><div style="font-size:11px;color:var(--text2)">${r.moment||""}</div></div>
+      <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">${parseFloat(r.gewicht_kg).toFixed(1)}<span style="font-size:13px;color:var(--text2);font-weight:400"> kg</span></div>
+    </div>`;
+  }).join("");
+}
+
+
+// ═══════════════════════════════════════════════════════
+// MUSCLE DUMMY
+// ═══════════════════════════════════════════════════════
+
+// Spiergroep → pad-indices (0-based, uit de 88 paden van de SVG)
+// SVG heeft voorkant (x < 3000) en achterkant (x >= 3000)
+// Gebaseerd op y-coördinaten en x-positie in de originele SVG (viewBox 0 0 6120 6120)
+const DUMMY_GROEPEN = {
+  // VOORKANT
+  'borst':       { paden: [8,9,24,25,26,27,28,30,31], kant: 'voor' },
+  'schouders':   { paden: [5,6,10,11], kant: 'voor' },
+  'biceps':      { paden: [14,15,18,19,20,21], kant: 'voor' },
+  'onderarmen':  { paden: [34,35,36,37,38,39,40,41,46,47,48,49], kant: 'voor' },
+  'core':        { paden: [41,42,52,53], kant: 'voor' },
+  'quads':       { paden: [60,61,62,63], kant: 'voor' },
+  'kuiten':      { paden: [76,77,85,86,87], kant: 'voor' },
+  // ACHTERKANT
+  'rug':         { paden: [1,32,33], kant: 'achter' },
+  'triceps':     { paden: [12,13,16,17,22,23], kant: 'achter' },
+  'hamstrings':  { paden: [64,66], kant: 'achter' },
+  'billen':      { paden: [56,57], kant: 'achter' },
+};
+
+// Secundaire spieren (lichter gekleurd)
+const DUMMY_SECUNDAIR = {
+  'bench press':        ['schouders', 'triceps'],
+  'incline bench press':['schouders', 'triceps'],
+  'overhead press':     ['triceps', 'schouders'],
+  'dumbbell press':     ['schouders', 'triceps'],
+  'dip':                ['triceps', 'borst'],
+  'pull-up':            ['biceps'],
+  'lat pulldown':       ['biceps'],
+  'barbell row':        ['biceps', 'onderarmen'],
+  'seated cable row':   ['biceps'],
+  'deadlift':           ['hamstrings', 'billen', 'quads'],
+  'squat':              ['billen', 'hamstrings'],
+  'romanian deadlift':  ['billen'],
+  'hip thrust':         ['hamstrings', 'quads'],
+  'barbell curl':       ['onderarmen'],
+  'dumbbell curl':      ['onderarmen'],
+  'triceps pushdown':   [],
+  'lateral raise':      [],
+};
+
+// Kleuren: 0 sets = donker, 1-2 = licht rood, 3-4 = rood, 5+ = helder rood
+const DUMMY_KLEUREN = {
+  0: '#1C1F2E',   // geen activiteit — zelfde als surface
+  1: '#7f1d1d',   // licht (1-2 sets)
+  2: '#dc2626',   // matig (3-4 sets)
+  3: '#fca5a5',   // intensief (5+ sets)
+};
+
+// Alle 88 SVG path data strings (in volgorde uit het originele bestand)
+const DUMMY_PADEN = [
+"M4309 5258 c-15 -65 -35 -114 -61 -151 -20 -29 -91 -71 -102 -60 -3 3 -11 1 -18 -4 -7 -5 -51 -23 -98 -38 -47 -16 -88 -31 -92 -34 -10 -9 2 -23 45 -56 56 -42 83 -96 106 -215 26 -136 39 -171 114 -304 63 -111 105 -199 127 -268 20 -66 34 -46 24 35 -5 39 -9 263 -10 497 -2 589 -3 650 -13 650 -5 0 -15 -24 -22 -52z",
+"M4410 4828 c0 -266 -3 -541 -6 -613 -5 -90 -3 -127 4 -120 6 6 26 51 45 101 19 50 61 135 92 190 78 135 94 173 116 289 27 142 42 175 105 234 30 28 60 51 67 52 12 0 -194 77 -223 83 -74 15 -121 70 -155 181 -15 47 -30 85 -36 85 -5 0 -9 -188 -9 -482z",
+"M1881 5193 c-60 -221 -73 -275 -67 -280 3 -3 21 27 41 68 19 41 34 67 35 59 0 -8 -14 -44 -30 -79 -17 -35 -29 -68 -28 -73 2 -4 17 2 35 14 35 26 45 67 31 131 -5 21 -4 45 1 55 12 23 13 142 1 142 -5 0 -14 -17 -19 -37z",
+"M1552 5067 c-1 -10 -6 -16 -11 -13 -5 3 -15 -2 -22 -10 -22 -27 -80 -59 -141 -81 l-57 -19 70 -24 c86 -30 95 -26 125 61 28 80 30 67 5 -24 -19 -64 -19 -67 -2 -67 34 0 42 24 38 112 -1 45 -4 75 -5 65z",
+"M1921 4993 c-1 -84 1 -92 20 -98 31 -10 33 -1 15 66 -22 76 -16 88 7 15 26 -80 35 -85 118 -56 38 13 72 20 75 17 3 -3 -24 -21 -61 -39 l-68 -33 61 -12 c100 -20 172 -79 172 -141 0 -10 7 -40 16 -66 18 -52 94 -141 115 -134 20 7 68 142 70 201 2 49 -1 60 -30 96 -76 95 -133 127 -261 141 -71 8 -160 45 -202 85 -17 16 -28 21 -29 13 -1 -7 -5 -2 -9 12 -5 17 -8 -5 -9 -67z",
+"M1228 4940 c-61 -18 -130 -65 -169 -116 -36 -47 -40 -58 -41 -111 -1 -44 6 -76 27 -124 16 -35 32 -68 36 -73 12 -14 74 41 101 91 14 27 29 70 33 98 5 38 15 57 44 86 36 37 114 68 170 69 20 1 10 9 -44 37 -38 19 -71 39 -73 44 -4 11 -47 10 -84 -1z",
+"M3763 4922 c-47 -15 -109 -69 -135 -120 -40 -77 -52 -150 -44 -263 l8 -96 88 92 c79 83 89 99 101 149 10 48 20 64 64 104 29 26 60 52 70 58 20 11 13 34 -11 34 -8 0 -37 11 -64 25 -27 14 -51 25 -52 24 -2 -1 -13 -4 -25 -7z",
+"M4926 4909 c-20 -10 -53 -23 -72 -29 -41 -14 -43 -25 -6 -44 40 -22 122 -104 122 -124 0 -55 25 -96 105 -178 l83 -85 9 58 c18 135 -3 251 -61 326 -62 81 -120 105 -180 76z",
+"M1433 4849 c-73 -9 -139 -37 -170 -70 -12 -13 -27 -46 -33 -73 -9 -42 -8 -55 13 -110 13 -33 32 -82 41 -108 20 -54 76 -116 128 -141 74 -35 245 -16 276 31 21 33 30 247 12 334 -28 146 -64 164 -267 137z",
+"M1844 4851 c-68 -30 -105 -290 -63 -452 12 -47 42 -60 154 -67 78 -4 97 -2 131 16 54 28 107 88 129 148 10 27 26 69 36 93 52 120 -3 223 -134 251 -72 15 -228 22 -253 11z",
+"M3939 4832 c-20 -9 -53 -31 -73 -49 l-36 -32 25 -37 c14 -20 25 -43 25 -51 0 -31 81 -101 155 -133 42 -18 78 -31 81 -28 2 3 -4 34 -15 69 -11 35 -27 103 -36 151 -25 124 -49 145 -126 110z",
+"M4726 4827 c-16 -16 -27 -45 -35 -93 -20 -115 -33 -168 -48 -197 -8 -16 -12 -31 -9 -34 3 -3 42 9 86 27 89 36 140 83 161 149 6 20 18 44 27 54 14 16 12 20 -19 48 -34 31 -103 68 -127 69 -7 0 -23 -10 -36 -23z",
+"M3797 4647 c-7 -18 40 -148 61 -169 37 -38 159 -42 212 -9 18 12 19 11 -60 48 -36 17 -78 44 -95 59 -26 25 -63 53 -101 77 -7 4 -14 1 -17 -6z",
+"M4890 4618 c-29 -24 -64 -53 -79 -65 -14 -12 -48 -30 -76 -41 -27 -11 -51 -24 -53 -30 -11 -34 139 -48 196 -18 31 16 67 90 79 164 7 43 -4 41 -67 -10z",
+"M1150 4518 c-66 -102 -97 -175 -120 -290 -23 -109 -37 -294 -22 -285 21 13 155 248 178 312 21 58 24 85 25 202 0 75 -2 137 -4 139 -2 2 -28 -33 -57 -78z",
+"M2266 4562 c-9 -57 -7 -173 4 -233 6 -30 27 -90 48 -134 44 -92 150 -260 159 -252 6 7 -14 220 -29 292 -20 102 -63 199 -133 302 l-43 62 -6 -37z",
+"M3746 4547 c-58 -98 -76 -163 -86 -295 -12 -160 -12 -283 -1 -300 20 -32 46 -5 97 96 61 122 75 194 68 337 -6 110 -20 179 -39 195 -10 9 -19 1 -39 -33z",
+"M4956 4556 c-9 -20 -19 -74 -22 -128 -3 -51 -8 -96 -10 -100 -7 -12 28 -218 36 -213 5 3 16 -15 26 -40 24 -65 71 -135 89 -135 31 0 36 47 25 230 -6 96 -18 200 -26 230 -16 55 -83 190 -95 190 -4 0 -14 -15 -23 -34z",
+"M2228 4525 c-10 -33 -21 -82 -24 -108 -6 -38 -9 -45 -20 -36 -10 8 -18 8 -27 1 -7 -6 -39 -24 -72 -41 l-60 -30 39 -16 c50 -21 82 -13 106 28 15 24 20 27 19 12 -1 -26 -17 -74 -18 -56 -1 9 -7 11 -18 5 -10 -4 -33 -8 -52 -8 -46 -2 -50 -21 -9 -46 42 -26 56 -25 69 3 8 18 9 15 5 -16 -6 -44 13 -162 24 -150 4 4 17 51 30 103 22 91 37 289 28 380 -3 33 -4 32 -20 -25z",
+"M1230 4434 c0 -115 4 -159 27 -257 30 -135 44 -140 51 -17 4 69 6 78 18 63 12 -17 15 -17 51 3 48 27 51 50 6 46 -18 -2 -41 2 -53 8 -17 9 -20 8 -21 -7 -1 -26 -17 25 -17 57 -1 24 0 24 8 3 5 -12 21 -29 35 -39 22 -14 32 -15 65 -5 22 6 40 15 40 19 0 4 -32 24 -70 45 -62 33 -71 36 -77 21 -4 -10 -16 24 -29 86 -13 56 -26 105 -29 108 -3 3 -5 -57 -5 -134z",
+"M1053 4454 c-32 -32 -61 -58 -66 -56 -4 1 -6 -1 -5 -5 1 -5 -4 -21 -11 -38 -7 -16 -20 -70 -29 -118 -13 -73 -14 -102 -5 -166 7 -43 18 -94 26 -112 l14 -34 2 55 c2 76 29 254 47 320 9 30 33 88 55 129 22 40 37 76 35 79 -3 2 -31 -22 -63 -54z",
+"M2360 4506 c0 -4 18 -43 40 -87 22 -44 47 -105 55 -137 19 -72 45 -253 45 -311 0 -59 9 -47 30 42 13 58 15 95 10 168 -7 91 -36 216 -47 205 -3 -3 -17 9 -32 27 -29 37 -101 103 -101 93z",
+"M3667 4489 c-10 -6 -29 -28 -42 -49 -21 -33 -27 -63 -39 -187 -8 -81 -11 -150 -7 -153 5 -3 7 -19 5 -37 -4 -37 13 -55 21 -21 3 13 14 96 25 186 18 151 27 185 68 265 5 10 -10 8 -31 -4z",
+"M5076 4450 c20 -39 30 -85 50 -231 13 -101 28 -187 32 -191 27 -27 19 260 -10 370 -11 45 -59 102 -84 102 -11 0 -8 -12 12 -50z",
+"M4070 4453 c-39 -20 -57 -23 -135 -21 l-90 3 0 -55 c0 -34 17 -120 47 -230 27 -96 48 -186 48 -200 0 -18 3 -21 9 -11 6 9 16 -17 30 -79 21 -92 83 -224 109 -235 7 -2 21 4 32 15 16 16 20 34 20 85 0 80 24 155 92 290 60 119 64 160 25 245 -35 74 -120 213 -132 215 -6 1 -30 -9 -55 -22z",
+"M4623 4471 c-16 -11 -122 -195 -138 -240 -23 -67 -19 -102 24 -188 89 -179 118 -266 108 -329 -10 -60 25 -111 57 -85 25 21 86 160 101 230 8 40 21 85 29 100 36 68 122 433 110 465 -3 9 -28 11 -88 8 -74 -4 -91 -1 -139 21 -30 13 -59 22 -64 18z",
+"M1580 4316 c-53 -9 -67 -16 -77 -36 -13 -26 -18 -175 -7 -204 8 -20 28 -21 44 -1 7 8 50 35 96 60 52 28 84 53 85 63 2 32 -2 67 -12 100 -12 36 -19 37 -129 18z",
+"M1770 4304 c-19 -49 -23 -103 -9 -120 7 -8 40 -29 73 -46 34 -17 75 -41 93 -54 17 -13 36 -24 42 -24 28 0 26 197 -3 229 -10 11 -44 23 -86 30 -94 15 -99 15 -110 -15z",
+"M1201 4262 c-1 -17 -93 -199 -127 -253 -29 -46 -28 -55 9 -143 l25 -58 10 33 c6 19 13 63 16 99 3 36 21 118 41 183 20 66 34 126 32 135 -3 10 -5 11 -6 4z",
+"M2275 4227 c3 -20 17 -72 31 -115 14 -42 29 -116 34 -163 9 -85 39 -182 40 -130 0 13 12 49 26 80 l27 56 -23 40 c-13 22 -50 92 -82 155 -45 87 -58 106 -53 77z",
+"M1647 4121 c-101 -51 -157 -115 -157 -178 0 -54 7 -56 110 -42 50 7 99 18 108 25 12 9 18 32 20 88 7 129 -6 145 -81 107z",
+"M1756 4124 c-12 -30 -6 -170 7 -188 9 -13 40 -22 98 -32 116 -19 116 -19 124 16 15 67 -41 142 -144 195 -58 29 -77 31 -85 9z",
+"M4315 4060 c-30 -11 -50 -38 -88 -115 -48 -98 -57 -132 -60 -218 -2 -68 -6 -79 -30 -105 -15 -15 -27 -33 -27 -39 0 -6 24 -22 54 -36 30 -14 68 -43 85 -64 17 -21 39 -48 48 -60 40 -50 41 -42 46 305 3 182 2 334 -2 336 -3 2 -15 0 -26 -4z",
+"M4414 4062 c-14 -10 -5 -674 9 -669 6 2 32 30 57 62 33 43 62 67 103 87 31 16 57 33 57 39 0 6 -11 24 -25 41 -21 25 -25 40 -25 97 0 142 -123 380 -176 343z",
+"M892 4024 c-37 -45 -68 -120 -87 -214 -16 -78 -30 -547 -16 -513 6 12 43 138 83 280 66 234 72 266 70 338 -1 44 -5 95 -10 114 l-8 35 -32 -40z",
+"M2541 3997 c-15 -86 -14 -128 5 -201 24 -92 145 -520 148 -524 6 -5 -3 388 -9 463 -11 116 -78 291 -123 319 -6 3 -15 -20 -21 -57z",
+"M1314 4038 c-4 -7 -6 -57 -5 -112 l2 -101 37 -38 c20 -21 45 -43 55 -48 37 -21 62 34 37 82 -6 10 -35 37 -65 59 -30 22 -55 48 -55 57 0 10 17 0 50 -31 27 -25 58 -46 70 -46 17 0 20 6 19 43 0 23 -4 50 -7 60 -11 25 -129 90 -138 75z",
+"M2090 4014 c-60 -33 -70 -49 -70 -106 0 -42 3 -48 21 -48 29 0 126 95 131 129 9 59 -12 65 -82 25z",
+"M998 3903 c-30 -33 -37 -54 -123 -367 -68 -249 -86 -356 -40 -241 13 33 49 130 80 215 31 85 77 199 102 252 41 90 44 100 33 133 -6 19 -15 35 -19 35 -4 0 -19 -12 -33 -27z",
+"M2430 3905 c-15 -39 -14 -41 39 -160 27 -61 79 -193 116 -295 76 -208 84 -227 85 -190 0 39 -150 585 -171 619 -10 16 -27 35 -39 41 -17 9 -22 7 -30 -15z",
+"M5233 3815 c-42 -177 -36 -241 41 -503 20 -68 36 -131 36 -139 0 -9 2 -14 5 -11 3 2 -4 88 -15 189 -12 107 -20 242 -20 324 1 93 -3 155 -12 185 l-14 45 -21 -90z",
+"M1573 3876 c-70 -17 -83 -30 -83 -80 0 -90 20 -106 129 -106 93 0 101 8 103 101 0 42 -2 81 -6 88 -9 14 -76 13 -143 -3z",
+"M1759 3868 c-14 -26 -6 -142 11 -163 9 -11 34 -15 90 -15 99 0 121 15 127 86 5 64 -11 83 -84 100 -87 21 -130 18 -144 -8z",
+"M3480 3832 c-7 -31 -15 -64 -17 -72 -4 -13 -4 -13 7 0 17 21 5 -239 -19 -445 -11 -88 -18 -161 -17 -162 2 -2 15 43 31 99 15 57 38 144 52 193 37 135 40 220 13 338 -12 53 -26 99 -30 102 -4 2 -13 -21 -20 -53z",
+"M2389 3790 c-11 -38 -10 -47 25 -138 21 -53 47 -124 58 -157 11 -33 24 -62 28 -65 5 -3 29 -49 54 -103 24 -53 48 -97 52 -97 15 0 -10 110 -55 238 -66 187 -131 351 -141 357 -5 3 -14 -13 -21 -35z",
+"M1035 3758 c-44 -101 -144 -384 -160 -451 -17 -73 -18 -77 -6 -77 4 0 30 47 57 104 27 58 51 103 53 100 3 -2 17 30 31 73 15 43 41 117 60 165 29 78 31 91 20 118 -7 16 -16 30 -20 30 -4 0 -20 -28 -35 -62z",
+"M1296 3784 c-4 -15 -6 -70 -5 -123 1 -53 -1 -107 -5 -121 -5 -21 4 -36 63 -97 38 -40 74 -73 79 -73 33 0 51 167 26 250 -20 67 -28 80 -97 141 l-55 49 -6 -26z",
+"M2103 3748 c-80 -83 -88 -105 -86 -230 2 -106 13 -152 36 -146 7 2 43 35 80 74 63 66 67 73 57 98 -6 16 -7 56 -4 95 8 81 -2 161 -19 161 -7 0 -36 -24 -64 -52z",
+"M3637 3783 c-3 -5 -8 -23 -12 -42 -4 -18 -15 -52 -26 -75 -19 -45 -49 -173 -74 -326 -9 -52 -23 -119 -31 -149 -8 -29 -13 -55 -10 -58 7 -7 37 61 78 176 18 52 39 100 45 107 7 7 25 50 39 96 14 46 35 100 46 121 28 57 40 89 28 82 -6 -3 -10 1 -10 10 0 17 -43 65 -59 65 -5 0 -12 -3 -14 -7z",
+"M5073 3775 c-21 -15 -38 -58 -34 -85 1 -8 13 -37 26 -65 13 -27 34 -81 45 -120 12 -38 26 -72 31 -76 5 -3 27 -54 49 -115 54 -143 71 -184 81 -184 4 0 2 17 -5 38 -8 22 -22 84 -31 138 -9 54 -23 133 -31 174 -19 101 -86 310 -99 310 -6 0 -20 -7 -32 -15z",
+"M3977 3673 c-13 -21 -32 -53 -41 -70 -9 -18 -20 -33 -24 -33 -4 0 -8 -9 -9 -21 -2 -16 2 -19 15 -14 9 3 40 11 67 17 62 14 75 24 75 55 0 25 -39 103 -52 103 -4 0 -18 -17 -31 -37z",
+"M4721 3677 c-11 -19 -24 -47 -27 -64 -6 -33 11 -46 81 -62 22 -5 48 -12 58 -16 13 -5 17 -2 17 14 0 12 -3 21 -7 21 -5 0 -21 24 -36 54 -16 30 -37 62 -47 71 -17 15 -19 14 -39 -18z",
+"M1502 3657 c-16 -19 13 -169 60 -316 39 -122 56 -155 111 -215 42 -47 44 -48 50 -25 4 13 7 129 7 258 0 227 -1 236 -22 268 -19 27 -30 33 -58 33 -19 0 -58 3 -85 6 -39 5 -54 3 -63 -9z",
+"M1852 3663 c-43 -3 -59 -9 -78 -31 -23 -27 -23 -28 -24 -277 0 -137 4 -256 8 -263 12 -18 97 85 123 150 54 135 110 375 96 412 -7 16 -10 17 -125 9z",
+"M3953 3443 c-14 -32 -28 -74 -31 -93 l-5 -34 39 31 c21 17 71 46 110 66 38 19 76 42 83 50 19 24 -16 37 -99 37 l-71 0 -26 -57z",
+"M4611 3491 c-23 -15 -6 -37 46 -61 26 -13 79 -43 116 -67 l69 -44 -7 33 c-4 18 -19 58 -34 88 l-26 55 -75 3 c-41 1 -81 -2 -89 -7z",
+"M4163 3451 c-10 -10 -54 -37 -98 -60 -134 -71 -165 -113 -165 -223 0 -163 37 -257 125 -317 49 -32 52 -33 136 -29 70 3 94 9 131 31 68 40 72 56 64 270 -8 207 -15 227 -100 305 -51 47 -67 51 -93 23z",
+"M4535 3458 c-32 -18 -65 -50 -97 -96 -34 -49 -37 -75 -41 -299 -2 -161 5 -181 79 -218 41 -20 162 -33 210 -21 38 10 114 85 137 136 26 57 37 262 17 310 -16 38 -66 78 -155 123 -38 19 -79 44 -89 56 -21 24 -32 25 -61 9z",
+"M1250 3403 c-7 -32 -18 -105 -25 -163 -7 -58 -20 -147 -30 -198 -9 -51 -15 -109 -13 -130 2 -30 14 0 63 158 51 167 60 205 59 267 -1 39 -4 83 -8 97 -11 44 -32 30 -46 -31z",
+"M2183 3443 c-4 -10 -7 -56 -7 -103 -1 -75 5 -105 52 -260 30 -96 57 -184 62 -195 15 -34 11 50 -6 140 -8 44 -19 118 -25 165 -21 170 -42 270 -56 270 -7 0 -17 -8 -20 -17z",
+"M1314 3383 c3 -16 15 -77 27 -138 32 -173 83 -366 144 -545 51 -147 114 -413 115 -480 0 -20 2 -22 10 -10 5 8 10 37 10 63 0 27 5 58 11 69 8 15 8 19 0 14 -7 -5 -11 8 -11 38 0 100 -57 344 -116 500 -19 49 -33 94 -30 100 2 6 5 3 5 -6 2 -47 40 6 65 90 16 56 11 87 -18 111 -14 12 -16 10 -16 -15 0 -16 -9 -49 -20 -73 -11 -24 -20 -55 -21 -70 l-1 -26 -13 30 c-18 38 -18 56 -2 49 17 -6 37 37 44 96 4 39 1 49 -25 80 l-30 35 -8 -85 -9 -85 -38 131 c-22 73 -44 137 -50 143 -19 19 -29 12 -23 -16z",
+"M2136 3388 c-8 -13 -31 -79 -51 -148 -38 -128 -49 -154 -45 -110 1 14 2 57 1 95 l-2 70 -29 -33 c-35 -38 -39 -80 -14 -142 17 -41 28 -50 37 -27 4 9 6 9 6 0 1 -7 -20 -70 -45 -140 -112 -310 -144 -476 -135 -698 3 -81 13 -55 46 120 15 84 51 218 90 336 67 203 121 411 154 594 18 104 15 126 -13 83z",
+"M1310 3238 c0 -3 -11 -48 -25 -100 -32 -123 -56 -315 -56 -452 0 -125 20 -213 89 -396 43 -113 63 -138 88 -105 33 45 73 249 77 392 2 77 -2 98 -30 173 -44 120 -69 206 -99 350 -14 69 -30 129 -35 135 -5 5 -9 6 -9 3z",
+"M2111 3060 c-24 -99 -61 -233 -83 -298 -39 -115 -40 -119 -33 -217 7 -117 47 -317 70 -352 30 -45 46 -26 101 119 28 75 57 158 63 185 22 87 25 248 7 393 -17 133 -59 327 -74 342 -4 4 -27 -73 -51 -172z",
+"M3820 2919 c-21 -137 0 -376 55 -619 13 -58 25 -113 27 -124 2 -10 4 96 5 235 2 194 -1 268 -12 314 -20 82 -35 173 -35 209 0 17 -7 39 -14 49 -12 15 -15 7 -26 -64z",
+"M1210 2911 c-13 -39 -27 -71 -33 -71 -6 0 -8 -33 -4 -92 4 -51 12 -164 17 -251 10 -140 15 -170 45 -255 19 -53 35 -113 36 -132 0 -25 2 -30 8 -17 6 17 8 16 20 -9 12 -26 13 -27 23 -10 19 35 0 158 -42 271 -68 180 -85 341 -56 535 8 52 13 96 11 98 -2 2 -13 -28 -25 -67z",
+"M4895 2922 c-3 -31 -17 -107 -30 -167 -22 -104 -23 -124 -18 -340 l6 -230 28 125 c38 170 72 449 64 525 -11 105 -17 134 -30 139 -9 3 -15 -12 -20 -52z",
+"M2244 2938 c39 -194 27 -380 -35 -558 -49 -138 -58 -177 -59 -252 0 -113 26 -81 90 110 30 90 40 136 40 184 0 34 4 101 9 148 18 160 23 283 13 276 -10 -6 -21 16 -42 87 -14 46 -25 49 -16 5z",
+"M1634 2927 c3 -13 8 -79 12 -148 5 -102 3 -134 -11 -183 -18 -60 -16 -155 4 -208 7 -18 11 -8 20 52 7 41 21 118 31 170 20 96 25 193 14 262 -5 29 -15 42 -41 58 l-35 21 6 -24z",
+"M1815 2929 c-16 -10 -33 -26 -37 -36 -14 -36 -8 -201 11 -294 11 -52 25 -127 31 -167 7 -40 14 -72 16 -69 2 2 8 39 12 83 6 57 5 94 -4 134 -15 61 -17 225 -5 310 5 30 8 56 7 56 0 1 -14 -7 -31 -17z",
+"M4218 2803 c-70 -18 -71 -24 -24 -132 35 -81 56 -182 56 -275 0 -30 4 -57 9 -60 14 -9 29 47 46 173 8 64 20 132 25 151 6 19 10 62 10 95 l0 61 -32 1 c-18 0 -59 -6 -90 -14z",
+"M4416 2805 c-10 -27 -7 -83 8 -144 8 -31 19 -101 26 -156 6 -55 20 -126 31 -158 10 -31 19 -76 19 -98 0 -23 6 -80 14 -128 8 -47 19 -131 25 -186 6 -55 19 -127 30 -160 l19 -60 11 40 c6 22 17 74 23 115 10 68 9 88 -16 210 -14 74 -33 153 -41 176 -9 22 -22 81 -29 130 l-14 89 -2 -60 c-2 -79 -18 -121 -19 -50 -1 81 27 241 50 286 31 62 48 115 40 127 -7 12 -72 31 -132 39 -28 4 -38 1 -43 -12z",
+"M4005 2772 c-63 -54 -72 -102 -85 -442 -5 -140 -14 -273 -19 -295 -6 -22 -13 -85 -16 -140 l-6 -100 32 50 c47 72 107 204 119 261 5 27 17 157 25 289 8 132 20 268 26 301 7 34 9 69 6 78 -8 21 -56 20 -82 -2z",
+"M4115 2781 c-12 -20 -34 -205 -44 -376 -6 -99 -16 -223 -22 -275 -7 -66 -7 -112 1 -150 10 -57 70 -213 78 -205 2 2 -1 40 -7 84 -11 73 -10 91 14 212 14 73 35 167 46 208 24 92 41 247 32 293 -3 18 -18 61 -33 95 -16 34 -31 75 -35 92 -7 31 -19 39 -30 22z",
+"M4617 2783 c-4 -3 -7 -14 -7 -23 0 -8 -9 -33 -20 -54 -44 -87 -53 -134 -47 -240 4 -56 16 -135 28 -176 11 -41 32 -131 46 -200 24 -121 26 -196 7 -300 -2 -14 11 6 30 44 55 112 60 153 47 360 -13 195 -50 576 -57 588 -6 10 -18 10 -27 1z",
+"M4670 2775 c-10 -12 -9 -32 3 -97 9 -46 21 -173 27 -283 17 -298 18 -307 97 -464 l68 -136 3 70 c2 39 -4 111 -13 162 -9 51 -14 102 -10 114 4 13 3 19 -3 16 -6 -4 -11 83 -15 236 -3 135 -11 261 -18 284 -22 80 -105 139 -139 98z",
+"M1491 2483 c-6 -65 -21 -158 -33 -207 -15 -67 -19 -108 -15 -159 6 -74 18 -97 49 -97 31 0 98 70 107 112 5 22 5 36 0 32 -5 -3 -9 5 -9 18 0 39 -76 418 -84 418 -1 0 -8 -53 -15 -117z",
+"M1967 2580 c-21 -51 -89 -397 -88 -445 0 -36 77 -115 111 -115 45 0 59 110 30 246 -11 54 -26 151 -33 214 -8 63 -17 108 -20 100z",
+"M4220 2420 c0 -30 -10 -86 -21 -125 -34 -124 -70 -308 -70 -367 -1 -58 17 -161 31 -188 7 -12 11 -8 20 15 15 38 37 164 49 285 5 52 15 133 22 179 9 63 9 88 0 102 -6 10 -11 38 -12 61 -1 24 -5 54 -9 68 -6 20 -8 13 -10 -30z",
+"M3926 1830 c-16 -27 -33 -47 -38 -44 -4 3 -8 -16 -8 -43 -1 -26 -7 -75 -15 -108 -29 -120 -9 -361 39 -476 l13 -31 42 43 c23 24 47 61 53 84 7 25 12 133 12 285 1 237 0 246 -22 293 -13 26 -29 47 -35 47 -7 0 -25 -23 -41 -50z",
+"M4764 1855 c-36 -54 -42 -122 -35 -366 5 -162 11 -242 20 -259 18 -34 72 -90 87 -90 14 0 47 120 65 233 14 89 7 207 -16 281 -8 27 -15 69 -15 93 0 23 -4 43 -10 43 -5 0 -21 20 -36 45 -14 25 -30 45 -35 45 -5 0 -16 -11 -25 -25z",
+"M1271 1835 c-18 -42 -32 -145 -22 -164 5 -9 11 -61 15 -116 10 -158 41 -326 97 -515 28 -96 55 -182 60 -190 21 -32 -2 153 -76 620 -24 151 -48 302 -53 335 -9 60 -9 60 -21 30z",
+"M2187 1854 c-4 -4 -7 -26 -7 -50 0 -23 -22 -178 -49 -345 -60 -369 -84 -544 -79 -590 2 -28 8 -16 37 76 82 271 112 417 127 638 4 53 10 97 13 97 4 0 4 26 1 58 -7 62 -31 128 -43 116z",
+"M4049 1783 c-6 -16 -9 -50 -6 -78 3 -27 1 -149 -3 -270 -8 -209 -7 -222 12 -262 29 -63 92 -106 102 -70 2 6 14 45 27 85 l23 73 -22 207 c-12 114 -21 216 -19 227 2 11 2 14 0 7 -3 -7 -15 3 -30 25 -65 95 -68 97 -84 56z",
+"M4636 1746 c-29 -40 -46 -74 -46 -93 0 -16 -9 -109 -21 -208 l-20 -180 28 -87 c15 -49 33 -88 40 -88 6 0 25 12 43 26 59 50 60 54 55 355 -5 282 -9 339 -25 339 -5 0 -29 -29 -54 -64z",
+"M1950 1667 c0 -14 -9 -63 -20 -109 -22 -93 -27 -243 -9 -313 l11 -45 30 18 c46 27 67 71 74 153 8 91 -8 173 -48 254 -36 73 -38 75 -38 42z",
+"M1492 1633 c-35 -68 -52 -144 -52 -230 0 -96 14 -138 59 -175 43 -37 39 -47 -6 -12 l-36 27 7 -163 c8 -186 20 -230 29 -113 4 43 15 110 26 148 10 39 26 99 36 135 14 52 16 85 11 165 -6 94 -33 236 -48 250 -4 4 -15 -10 -26 -32z",
+"M1228 1639 c-15 -79 43 -427 102 -614 16 -49 38 -121 50 -160 36 -124 14 -16 -38 190 -59 230 -79 336 -88 473 -4 53 -10 106 -14 116 -6 18 -7 18 -12 -5z"
+];
+
+// Spiergroep → primaire oefeningen mapping (voor automatische kleuring)
+const OEFENING_SPIERGROEP = {
+  'borst':       ['bench press','incline bench press','decline bench press','dumbbell press','cable fly','dip','push-up','chest press'],
+  'rug':         ['pull-up','lat pulldown','barbell row','seated cable row','face pull','deadlift','back extension','t-bar row','cable row'],
+  'schouders':   ['overhead press','dumbbell shoulder press','lateral raise','cable lateral raise','reverse fly','front raise','arnold press','cable exorotatie'],
+  'biceps':      ['barbell curl','dumbbell curl','hammer curl','incline dumbbell curl','cable curl','preacher curl','concentration curl'],
+  'triceps':     ['triceps pushdown','overhead triceps extension','close-grip bench press','skull crusher','dip','kickback'],
+  'onderarmen':  ['wrist curl','reverse curl','farmer'],
+  'core':        ['plank','crunch','russian twist','ab rollout','leg raise','sit-up','cable crunch'],
+  'quads':       ['squat','leg press','leg extension','bulgarian split squat','lunge','front squat','hack squat'],
+  'hamstrings':  ['romanian deadlift','leg curl','nordic curl','stiff leg','good morning'],
+  'billen':      ['hip thrust','hip abductie','cable kickback','glute bridge','sumo'],
+  'kuiten':      ['calf raise','standing calf','seated calf'],
+};
+
+// ── State: sets per spiergroep ──
+let dummySetsPerGroep = {};
+
+function resetDummy() {
+  dummySetsPerGroep = {};
+  renderDummy();
+}
+
+function updateDummyVanafOefeningen() {
+  // Herbereken vanuit alle workout oefeningen
+  dummySetsPerGroep = {};
+
+  workoutOefeningen.forEach(oef => {
+    const naam = oef.naam.toLowerCase();
+    const gedaanSets = oef.sets.filter(s => s.done).length || oef.sets.length;
+
+    // Primaire spiergroep
+    const hoofd = oef.db?.spiergroep_hoofd || bepaalSpiergroep(naam);
+    if (hoofd) {
+      dummySetsPerGroep[hoofd] = (dummySetsPerGroep[hoofd] || 0) + gedaanSets;
+    }
+
+    // Secundaire spiergroepen (halve waarde)
+    const sec = oef.db?.spiergroep_sec || '';
+    if (sec) {
+      sec.split(',').forEach(s => {
+        const g = s.trim().toLowerCase();
+        if (g) dummySetsPerGroep[g] = (dummySetsPerGroep[g] || 0) + Math.ceil(gedaanSets / 2);
+      });
+    }
+  });
+
+  renderDummy();
+}
+
+function bepaalSpiergroep(naamLower) {
+  for (const [groep, sleutelwoorden] of Object.entries(OEFENING_SPIERGROEP)) {
+    if (sleutelwoorden.some(kw => naamLower.includes(kw))) return groep;
+  }
+  return null;
+}
+
+function getDummyKleur(sets) {
+  if (!sets || sets === 0) return '#2E3250';  // niet getraind
+  if (sets <= 3)  return '#7f1d1d';           // licht
+  if (sets <= 6)  return '#dc2626';           // matig
+  return '#fca5a5';                           // intensief
+}
+
+function renderDummy() {
+  const frontG = document.getElementById('dummy-front-g');
+  const backG  = document.getElementById('dummy-back-g');
+  if (!frontG || !backG) return;
+
+  // Bouw SVG paden
+  let frontHTML = '';
+  let backHTML  = '';
+
+  DUMMY_PADEN.forEach((d, i) => {
+    // Bepaal kleur op basis van welke groep dit pad bij hoort
+    let kleur = '#2E3250';
+
+    for (const [groep, info] of Object.entries(DUMMY_GROEPEN)) {
+      if (info.paden.includes(i)) {
+        const sets = dummySetsPerGroep[groep] || 0;
+        const kandidaat = getDummyKleur(sets);
+        // Pak de donkerste/helderste kleur als meerdere groepen overlappen
+        if (kandidaat !== '#2E3250') kleur = kandidaat;
+        break;
+      }
+    }
+
+    const path = `<path d="${d}" fill="${kleur}" stroke="#0F1117" stroke-width="12" style="transition:fill .4s ease"/>`;
+
+    // Bepaal of dit pad voorkant of achterkant is op basis van de startcoördinaat
+    const xMatch = d.match(/M(\d+)/);
+    const x = xMatch ? parseInt(xMatch[1]) : 0;
+
+    if (x < 3000) {
+      frontHTML += path;
+    } else {
+      backHTML += path;
+    }
+  });
+
+  frontG.innerHTML = frontHTML;
+  backG.innerHTML  = backHTML;
+}
+
+// Dummy updaten wanneer een oefening toegevoegd of een set aangevinkt wordt
+function triggerDummyUpdate() {
+  updateDummyVanafOefeningen();
+}
+
+
+// ═══════════════════════════════════════════════════════
+// FASE 3 — VOORTGANG
+// ═══════════════════════════════════════════════════════
+async function loadVoortgang() {
+  await Promise.all([loadPRs(), loadWeekVolume(), renderKalender(), vulOefeningSelect()]);
+}
+
+async function loadPRs() {
+  const el = document.getElementById("pr-dashboard");
+  if(!el) return;
+  el.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Laden...</div>';
+  try {
+    const alleData = await apiGet({ action:"getVoortgang", oefening:"all", periode:"all" }).catch(()=>[]);
+    const bestPerOef = {};
+    (Array.isArray(alleData)?alleData:[]).forEach(row => {
+      if (!row.oefening || !row.e1rm) return;
+      const e = parseFloat(row.e1rm);
+      if (!bestPerOef[row.oefening] || e > bestPerOef[row.oefening].e1rm)
+        bestPerOef[row.oefening] = { e1rm:e, kg:parseFloat(row.kg)||0, reps:parseInt(row.reps)||0, datum:row.datum };
+    });
+    if (!Object.keys(bestPerOef).length) {
+      el.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:13px;padding:12px 0">Log je eerste workout om PR\'s te zien!</div>';
+      return;
+    }
+    const sorted = Object.entries(bestPerOef).sort((a,b) => b[1].e1rm - a[1].e1rm);
+    el.innerHTML = sorted.map(([naam, pr], i) => {
+      const d = new Date(pr.datum+"T12:00:00").toLocaleDateString("nl-NL",{day:"numeric",month:"short"});
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;${i<sorted.length-1?"border-bottom:1px solid var(--border)":""}">
+        <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${naam}</div><div style="font-size:11px;color:var(--text2);margin-top:1px">${pr.kg}kg × ${pr.reps} reps · ${d}</div></div>
+        <div style="text-align:right;flex-shrink:0;margin-left:12px"><div style="font-size:15px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums">${pr.e1rm.toFixed(1)}</div><div style="font-size:10px;color:var(--text2)">~1RM kg</div></div>
+      </div>`;
+    }).join("");
+  } catch(e) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Kan PR\'s niet laden</div>';
+  }
+}
+
+async function vulOefeningSelect() {
+  const sel = document.getElementById("vg-oefening-select");
+  if (!sel || sel.options.length > 1) return;
+  try {
+    const db = await apiGet({ action:"getOefeningDatabase" });
+    db.forEach(o => {
+      const opt = document.createElement("option");
+      opt.value = o.oefening_naam; opt.textContent = o.oefening_naam;
+      sel.appendChild(opt);
+    });
+  } catch(e) {}
+}
+
+async function laadVoortgangGrafiek() {
+  const oefening = document.getElementById("vg-oefening-select")?.value;
+  const periode  = document.getElementById("vg-periode-select")?.value;
+  const leeg = document.getElementById("vg-leeg"), canvas = document.getElementById("vg-chart");
+  if(!leeg || !canvas) return;
+  if (!oefening) { canvas.style.display="none"; leeg.style.display="block"; document.getElementById("vg-stats").innerHTML=""; return; }
+  leeg.style.display="none"; canvas.style.display="block";
+  try {
+    const logs = await apiGet({ action:"getVoortgang", oefening, periode });
+    if (!Array.isArray(logs)||!logs.length) { tekenLegeVgGrafiek(canvas,"Geen data"); document.getElementById("vg-stats").innerHTML=""; return; }
+    const perDag = {};
+    logs.forEach(row => {
+      const e = parseFloat(row.e1rm)||0;
+      if (!perDag[row.datum] || e > perDag[row.datum].e1rm) perDag[row.datum] = { datum:row.datum, e1rm:e, kg:parseFloat(row.kg)||0 };
+    });
+    const punten = Object.values(perDag).sort((a,b) => new Date(a.datum)-new Date(b.datum));
+    tekenVgGrafiek(canvas, punten); toonVgStats(punten);
+  } catch(err) { tekenLegeVgGrafiek(canvas,"Fout: "+err.message); }
+}
+
+function tekenLegeVgGrafiek(canvas, tekst) {
+  if(!canvas) return;
+  const ctx=canvas.getContext("2d"),dpr=window.devicePixelRatio||1,w=canvas.offsetWidth||300,h=160;
+  canvas.width=w*dpr;canvas.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="#4B5563";ctx.font="13px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText(tekst,w/2,h/2);
+}
+
+function tekenVgGrafiek(canvas, punten) {
+  if(!canvas) return;
+  const ctx=canvas.getContext("2d"),dpr=window.devicePixelRatio||1,w=canvas.offsetWidth||300,h=160;
+  canvas.width=w*dpr;canvas.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+  const vals=punten.map(p=>p.e1rm).filter(v=>v>0);
+  if (vals.length<2){tekenLegeVgGrafiek(canvas,"Meer sessies nodig");return;}
+  const mn=Math.min(...vals)*.97,mx=Math.max(...vals)*1.03;
+  const pL=8,pR=8,pT=14,pB=20,cw=w-pL-pR,ch=h-pT-pB;
+  const xOf=i=>pL+(i/(punten.length-1))*cw;
+  const yOf=v=>pT+ch-((v-mn)/(mx-mn))*ch;
+  [0,.5,1].forEach(f=>{
+    const y=pT+f*ch;ctx.strokeStyle="#2E3250";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(w-pR,y);ctx.stroke();
+    ctx.fillStyle="#4B5563";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="left";
+    ctx.fillText((mn+(1-f)*(mx-mn)).toFixed(0)+"kg",0,y+3);
+  });
+  const fmt=d=>new Date(d+"T12:00:00").toLocaleDateString("nl-NL",{day:"numeric",month:"short"});
+  ctx.fillStyle="#4B5563";ctx.font="9px -apple-system,sans-serif";
+  ctx.textAlign="left";ctx.fillText(fmt(punten[0].datum),pL,h-4);
+  ctx.textAlign="right";ctx.fillText(fmt(punten[punten.length-1].datum),w-pR,h-4);
+  const grad=ctx.createLinearGradient(0,pT,0,pT+ch);
+  grad.addColorStop(0,"rgba(59,130,246,.28)");grad.addColorStop(1,"rgba(59,130,246,0)");
+  ctx.beginPath();ctx.moveTo(xOf(0),yOf(punten[0].e1rm));
+  punten.forEach((p,i)=>{if(i>0)ctx.lineTo(xOf(i),yOf(p.e1rm));});
+  ctx.lineTo(xOf(punten.length-1),pT+ch);ctx.lineTo(xOf(0),pT+ch);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();ctx.strokeStyle="#3B82F6";ctx.lineWidth=2;ctx.lineJoin="round";
+  punten.forEach((p,i)=>{i===0?ctx.moveTo(xOf(i),yOf(p.e1rm)):ctx.lineTo(xOf(i),yOf(p.e1rm));});
+  ctx.stroke();
+  punten.forEach((p,i)=>{
+    const x=xOf(i),y=yOf(p.e1rm),isLast=i===punten.length-1;
+    ctx.beginPath();ctx.arc(x,y,isLast?5:3,0,Math.PI*2);
+    ctx.fillStyle=isLast?"#3B82F6":"rgba(59,130,246,.5)";ctx.fill();
+    if(isLast){ctx.fillStyle="#F1F5F9";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="center";ctx.fillText(p.e1rm.toFixed(1)+"kg",x,y-8);}
+  });
+}
+
+function toonVgStats(punten) {
+  const el=document.getElementById("vg-stats");
+  if(!el) return;
+  if(!punten.length){el.innerHTML="";return;}
+  const eerste=punten[0].e1rm,laatste=punten[punten.length-1].e1rm;
+  const beste=Math.max(...punten.map(p=>p.e1rm)),groei=laatste-eerste;
+  const sign=groei>=0?"+":"",kleur=groei>=0?"var(--green)":"var(--red)";
+  el.innerHTML=`<div style="text-align:center;flex:1"><div style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums">${beste.toFixed(1)}</div><div style="font-size:10px;color:var(--text2);margin-top:2px">Beste 1RM</div></div><div style="width:1px;background:var(--border)"></div><div style="text-align:center;flex:1"><div style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;color:${kleur}">${sign}${groei.toFixed(1)}</div><div style="font-size:10px;color:var(--text2);margin-top:2px">Groei (kg)</div></div><div style="width:1px;background:var(--border)"></div><div style="text-align:center;flex:1"><div style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums">${punten.length}</div><div style="font-size:10px;color:var(--text2);margin-top:2px">Sessies</div></div>`;
+}
+
+async function loadWeekVolume() {
+  const el=document.getElementById("volume-card");
+  if(!el) return;
+  try {
+    const data=await apiGet({action:"getDashboard",datum:toYMD(new Date())});
+    const wb=weekStart(new Date());
+    if(!(data.laatste_workouts||[]).filter(w=>w.datum>=wb).length){el.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Geen workouts deze week</div>';return;}
+    const alleData=await apiGet({action:"getVoortgang",oefening:"all",periode:"30d"}).catch(()=>[]);
+    const wbDate=new Date(wb);
+    const weekLogs=(Array.isArray(alleData)?alleData:[]).filter(r=>new Date(r.datum)>=wbDate);
+    const setsPerGroep={};
+    weekLogs.forEach(row=>{const g=row.spiergroep_hoofd;if(g)setsPerGroep[g]=(setsPerGroep[g]||0)+1;});
+    if(!Object.keys(setsPerGroep).length){el.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Geen set-data</div>';return;}
+    const max=Math.max(...Object.values(setsPerGroep));
+    const volgorde=["borst","rug","schouders","biceps","triceps","quads","hamstrings","billen","core","kuiten","onderarmen"];
+    const kleuren={borst:"#3B82F6",rug:"#8B5CF6",schouders:"#06B6D4",biceps:"#F59E0B",triceps:"#F97316",quads:"#22C55E",hamstrings:"#10B981",billen:"#EC4899",core:"#EF4444",kuiten:"#6B7280",onderarmen:"#A78BFA"};
+    const labels={borst:"Borst",rug:"Rug",schouders:"Schouders",biceps:"Biceps",triceps:"Triceps",quads:"Quads",hamstrings:"Hamstrings",billen:"Billen",core:"Core",kuiten:"Kuiten",onderarmen:"Onderarmen"};
+    el.innerHTML=volgorde.filter(g=>setsPerGroep[g]).map(g=>{
+      const sets=setsPerGroep[g]||0,pct=(sets/max)*100,kleur=kleuren[g]||"#3B82F6";
+      return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${labels[g]||g}</span><span style="font-weight:600;color:${kleur}">${sets} sets</span></div><div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${kleur};border-radius:3px;transition:width .6s ease"></div></div></div>`;
+    }).join("");
+  } catch(e){el.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Laden mislukt</div>';}
+}
+
+async function renderKalender() {
+  const el=document.getElementById("kalender-wrap");
+  if(!el) return;
+  try {
+    const data=await apiGet({action:"getDashboard",datum:toYMD(new Date())});
+    const werkDagen={};
+    (data.laatste_workouts||[]).forEach(w=>{werkDagen[w.datum]=w.workout_naam||"Workout";});
+    const vandaag=new Date(),dagNamen=["Ma","Di","Wo","Do","Vr","Za","Zo"];
+    const maandag=new Date(vandaag);
+    maandag.setDate(vandaag.getDate()+(vandaag.getDay()===0?-6:1-vandaag.getDay())-28);
+    let html=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px">${dagNamen.map(d=>`<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:600">${d}</div>`).join("")}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
+    for(let i=0;i<35;i++){
+      const d=new Date(maandag);d.setDate(maandag.getDate()+i);
+      const ymd=toYMD(d),isVandaag=ymd===toYMD(vandaag),isWorkout=werkDagen[ymd],isToekomst=d>vandaag;
+      let bg="var(--surface2)",kleur="var(--text3)";
+      if(isWorkout){bg="var(--accent)";kleur="#fff";}
+      if(isVandaag&&!isWorkout){bg="var(--border)";kleur="var(--text)";}
+      html+=`<div title="${werkDagen[ymd]||""}" style="aspect-ratio:1;border-radius:6px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:${isVandaag?"700":"400"};color:${kleur};${isToekomst?"opacity:.3":""}">${d.getDate()}</div>`;
+    }
+    html+=`</div><div style="display:flex;gap:12px;margin-top:10px;justify-content:center"><div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>Workout</div><div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;border-radius:3px;background:var(--border)"></div>Vandaag</div></div>`;
+    el.innerHTML=html;
+  } catch(e){el.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:8px 0">Laden mislukt</div>';}
+}
+
+// ═══════════════════════════════════════════════════════
+// FASE 5 — INSTELLINGEN
+// ═══════════════════════════════════════════════════════
+const INST_VELDEN = {
+  'inst-naam':'gebruikersnaam','inst-gewicht':'lichaamsgewicht_kg',
+  'inst-doelgewicht':'doelgewicht_kg','inst-kcal':'kcal_dagdoel',
+  'inst-eiwit':'eiwit_doel_g','inst-koolhyd':'koolhyd_doel_g','inst-vet':'vet_doel_g',
+  'inst-repmin':'rep_min_standaard','inst-repmax':'rep_max_standaard',
+  'inst-sprong-c':'gewichtssprong_compound','inst-sprong-l':'gewichtssprong_lower',
+  'inst-sprong-i':'gewichtssprong_isolatie','inst-deload':'deload_na_mislukkingen',
+};
+
+function slaApiUrlOp() {
+  const url = document.getElementById("inst-api-url").value.trim();
+  if (!url || !url.startsWith("https://")) {
+    showToast("Vul een geldige URL in (begint met https://)");
+    return;
+  }
+  setApiUrl(url);
+}
+
+async function loadInstellingen() {
+  // Toon opgeslagen URL in het veld
+  const opgeslagenUrl = localStorage.getItem("gl_api_url") || "";
+  const urlInput = document.getElementById("inst-api-url");
+  if (urlInput) urlInput.value = opgeslagenUrl;
+
+  if (!opgeslagenUrl) {
+    if(document.getElementById("inst-api-status")) {
+      document.getElementById("inst-api-status").textContent = "⚠ Geen URL ingesteld — vul de Apps Script URL in";
+      document.getElementById("inst-api-status").style.color = "var(--amber)";
+    }
+    return;
+  }
+
+  const keys = Object.values(INST_VELDEN);
+  try {
+    const resultaten = await Promise.all(keys.map(k => apiGet({action:'getInstelling',key:k}).catch(()=>null)));
+    keys.forEach((k,i) => {
+      const val = resultaten[i]; if (val===null||val===undefined||val==='') return;
+      const veldId = Object.keys(INST_VELDEN).find(id => INST_VELDEN[id]===k);
+      if (veldId) { const el = document.getElementById(veldId); if (el) el.value = val; }
+    });
+    // Sync in-memory
+    const kcal   = parseFloat(document.getElementById('inst-kcal')?.value)    || DOELEN.kcal;
+    const eiwit  = parseFloat(document.getElementById('inst-eiwit')?.value)   || DOELEN.eiwit;
+    const koolhyd= parseFloat(document.getElementById('inst-koolhyd')?.value) || DOELEN.koolhyd;
+    const vet    = parseFloat(document.getElementById('inst-vet')?.value)      || DOELEN.vet;
+    const gew    = parseFloat(document.getElementById('inst-gewicht')?.value)  || GEBRUIKER_KG;
+    DOELEN.kcal=kcal; DOELEN.eiwit=eiwit; DOELEN.koolhyd=koolhyd; DOELEN.vet=vet; GEBRUIKER_KG=gew;
+    setSyncStatus('✓ Verbonden met Sheets');
+  } catch(err) {
+    setSyncStatus('⚠ Sheets niet bereikbaar');
+  }
+}
+
+async function slaInstelling(key, value) {
+  if (!value && value!==0) return;
+  setSyncStatus('Opslaan...');
+  try {
+    await apiPost({action:'setInstelling',key,value});
+    setSyncStatus('✓ Opgeslagen');
+  } catch(e) {
+    setSyncStatus('⚠ Opslaan mislukt — check de URL');
+    showToast('❌ Opslaan mislukt. Ga naar Instellingen en controleer de Apps Script URL.');
+  }
+}
+
+function slaDoelInstelling(doelKey, value) {
+  const num = parseFloat(value); if (!num) return;
+  if (doelKey==='kcal')    { DOELEN.kcal=num;    slaInstelling('kcal_dagdoel',num); }
+  if (doelKey==='eiwit')   { DOELEN.eiwit=num;   slaInstelling('eiwit_doel_g',num); }
+  if (doelKey==='koolhyd') { DOELEN.koolhyd=num; slaInstelling('koolhyd_doel_g',num); }
+  if (doelKey==='vet')     { DOELEN.vet=num;      slaInstelling('vet_doel_g',num); }
+}
+
+function updateGebruikerKg(value) {
+  const num = parseFloat(value); if (num&&num>=30&&num<=300) GEBRUIKER_KG=num;
+}
+
+function setSyncStatus(tekst) {
+  const el = document.getElementById('inst-sync-status'); if (!el) return;
+  el.textContent = tekst;
+  el.style.color = tekst.startsWith('✓') ? 'var(--green)' : tekst.startsWith('⚠') ? 'var(--amber)' : 'var(--text2)';
+}
+
+// INIT
+// ═══════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+    loadDashboard();
+    loadInstellingen();
+});
+</script>
+</body>
+</html>
+```eof
+
+Ah, ik zie wat er is gebeurd. In de laatste patch-poging van Claude is het een beetje een bende geworden. 
+
+Er zijn twee dingen gebeurd:
+1.  **Dubbele code:** De hele `<!DOCTYPE html>` file werd opeens twee keer achter elkaar in hetzelfde bestand geplakt. De browser probeert dus de helft uit te voeren, loopt vast op de dubbele structuren, en dan werkt geen enkel knopje meer.
+2.  **Verkeerde volgorde:** De nieuwe "Nieuwe Workout" functies en globale variabelen (zoals `nieuweWorkoutOefeningen`) moesten bovenaan het JavaScript-blok (`<script>`) komen te staan, maar ze stonden ergens in het midden. Daardoor wisten de knoppen niet welke code ze moesten uitvoeren toen de HTML werd ingeladen.
+
+**De oplossing:**
+Ik heb het bestand compleet opgeschoond. 
+1.  Alle dubbele code is verwijderd.
+2.  Alle JavaScript-functies zijn in de juiste volgorde gezet.
+3.  Ik heb overal "safety checks" (bijv. `if(element)`) toegevoegd, zodat het script niet meer compleet kan crashen (vastlopen) als één klein onderdeeltje nog niet geladen is.
+4.  De initialisatie start nu netjes zodra de hele webpagina is geladen via `DOMContentLoaded`.
